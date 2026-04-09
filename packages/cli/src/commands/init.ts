@@ -1,12 +1,12 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
-import { execa } from "execa";
 import { detectFramework } from "../utils/detect.js";
 import { createStripeProducts } from "../utils/stripe.js";
 import { installTemplates } from "../utils/templates.js";
 import { updateEnvFile } from "../utils/env.js";
 import { setupDatabase } from "../utils/database.js";
+import { detectPackageManager, installDependencies } from "../utils/package-manager.js";
 import { trackTiming, trackFunnel, FunnelStage } from "../utils/telemetry.js";
 import { promptForFeedback } from "../utils/feedback.js";
 
@@ -14,6 +14,14 @@ interface InitOptions {
   skipStripe?: boolean;
   template?: string;
   yes?: boolean;
+}
+
+interface InitConfig {
+  stripeSecretKey: string;
+  stripePublishableKey: string;
+  webhookSecret: string;
+  template: string;
+  createProducts: boolean;
 }
 
 export async function initCommand(options: InitOptions) {
@@ -46,14 +54,12 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
+  // Detect package manager early
+  const pkgManager = await detectPackageManager();
+  console.log(chalk.gray(`Using package manager: ${pkgManager}\n`));
+
   // Collect configuration
-  let config: {
-    stripeSecretKey: string;
-    stripePublishableKey: string;
-    webhookSecret: string;
-    template: string;
-    createProducts: boolean;
-  };
+  let config: InitConfig;
 
   if (options.yes) {
     // Use defaults + env if available
@@ -112,17 +118,27 @@ export async function initCommand(options: InitOptions) {
   // Setup steps
   console.log(chalk.blue.bold("\n📦 Setting up @drew/billing...\n"));
 
+  const results = {
+    dependencies: false,
+    stripeProducts: false,
+    database: false,
+    templates: false,
+    env: false,
+  };
+
+  const errors: string[] = [];
+
   // 1. Install dependencies
   const depsSpinner = ora("Installing dependencies...").start();
   try {
-    await execa("npm", ["install", "@drew/billing-sdk", "stripe"], {
-      cwd: process.cwd(),
-      stdio: "pipe",
-    });
+    await installDependencies(["@drew/billing-sdk", "stripe"]);
     depsSpinner.succeed("Dependencies installed");
+    results.dependencies = true;
   } catch (error) {
     depsSpinner.fail("Failed to install dependencies");
-    console.log(chalk.gray("Run manually: npm install @drew/billing-sdk stripe"));
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Dependencies: ${errorMsg}`);
+    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} @drew/billing-sdk stripe`));
   }
 
   // 2. Create Stripe products
@@ -132,9 +148,13 @@ export async function initCommand(options: InitOptions) {
     try {
       products = await createStripeProducts(config.stripeSecretKey);
       productSpinner.succeed(`Created ${products.length} products in Stripe`);
+      results.stripeProducts = true;
     } catch (error) {
       productSpinner.fail("Failed to create Stripe products");
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`Stripe products: ${errorMsg}`);
       console.log(chalk.gray("You can create them manually in the Stripe Dashboard"));
+      console.log(chalk.gray("Then update the price IDs in your code"));
     }
   }
 
@@ -143,9 +163,13 @@ export async function initCommand(options: InitOptions) {
   try {
     await setupDatabase();
     dbSpinner.succeed("Database configured");
+    results.database = true;
   } catch (error) {
     dbSpinner.fail("Database setup failed");
-    console.log(chalk.gray("Run: npx drizzle-kit push"));
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Database: ${errorMsg}`);
+    console.log(chalk.gray("You can set up the database later by running:"));
+    console.log(chalk.gray("  npx drizzle-kit push"));
   }
 
   // 4. Install templates
@@ -153,8 +177,13 @@ export async function initCommand(options: InitOptions) {
   try {
     await installTemplates(config.template, products);
     templateSpinner.succeed(`Template installed`);
+    results.templates = true;
   } catch (error) {
     templateSpinner.fail("Template installation failed");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Templates: ${errorMsg}`);
+    console.log(chalk.gray("Try running:"));
+    console.log(chalk.gray("  npx @drew/billing add all"));
   }
 
   // 5. Update environment variables
@@ -167,8 +196,11 @@ export async function initCommand(options: InitOptions) {
       BILLING_API_URL: "http://localhost:3000",
     });
     envSpinner.succeed("Environment variables configured");
+    results.env = true;
   } catch (error) {
     envSpinner.fail("Failed to update .env");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Environment: ${errorMsg}`);
   }
 
   // Track init completed
@@ -177,16 +209,29 @@ export async function initCommand(options: InitOptions) {
     template: config.template,
     durationMs: initDuration,
     framework: framework.name,
+    success: Object.values(results).every(r => r),
   });
   trackTiming("init_complete", initDuration);
 
-  // Success message
+  // Summary
   console.log(chalk.green.bold("\n✅ Setup complete!\n"));
+
+  // Show any errors
+  if (errors.length > 0) {
+    console.log(chalk.yellow("⚠️  Some steps failed:"));
+    errors.forEach(err => console.log(chalk.gray(`  • ${err}`)));
+    console.log();
+  }
+
   console.log(chalk.white("Next steps:\n"));
-  console.log(chalk.gray("1."), "Start your dev server:", chalk.cyan("npm run dev"));
+  console.log(chalk.gray("1."), "Start your dev server:", chalk.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
   console.log(chalk.gray("2."), "Start Stripe webhook listener:", chalk.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
-  console.log(chalk.gray("3."), "Visit", chalk.cyan("http://localhost:3000/pricing"));
+  
+  if (results.templates) {
+    console.log(chalk.gray("3."), "Visit", chalk.cyan("http://localhost:3000/pricing"));
+  }
   console.log();
+
   console.log(chalk.gray("Documentation:"), chalk.underline("https://billing.drew.dev/docs"));
   console.log(chalk.gray("Diagnostics:"), chalk.cyan("npx @drew/billing doctor"));
   console.log(chalk.gray("Support:"), chalk.underline("https://github.com/drew/billing/issues"));
@@ -210,5 +255,6 @@ export async function initCommand(options: InitOptions) {
     template: config.template,
     framework: framework.name,
     durationMs: initDuration,
+    results,
   });
 }

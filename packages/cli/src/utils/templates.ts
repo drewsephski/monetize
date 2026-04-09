@@ -1,6 +1,40 @@
 import fs from "fs-extra";
 import path from "path";
+import chalk from "chalk";
 import { addCommand } from "../commands/add.js";
+
+/**
+ * Robustly write a file with logging and error handling
+ */
+async function writeTemplateFile(
+  filePath: string,
+  content: string,
+  description: string
+): Promise<void> {
+  try {
+    // Ensure parent directory exists
+    await fs.ensureDir(path.dirname(filePath));
+
+    // Write file
+    await fs.writeFile(filePath, content, "utf-8");
+
+    // Verify file was written
+    const exists = await fs.pathExists(filePath);
+    if (!exists) {
+      throw new Error(`Verification failed: ${filePath} was not created`);
+    }
+
+    const stats = await fs.stat(filePath);
+    console.log(chalk.gray(`  ✓ ${description} (${stats.size} bytes)`));
+  } catch (error) {
+    console.error(chalk.red(`  ✗ Failed to write ${description}:`));
+    console.error(chalk.red(`    ${filePath}`));
+    if (error instanceof Error) {
+      console.error(chalk.red(`    ${error.message}`));
+    }
+    throw error;
+  }
+}
 
 export async function installTemplates(
   templateType: string,
@@ -31,6 +65,8 @@ async function installSaasTemplate(
   cwd: string,
   products: Array<{ id: string; name: string; priceId: string }>
 ): Promise<void> {
+  console.log(chalk.blue("\n📄 Creating SaaS template pages..."));
+
   // First, install all billing components
   await addCommand("all", { path: "components/billing", cwd });
 
@@ -349,7 +385,11 @@ export default function HomePage() {
 }
 `;
 
-  await fs.writeFile(path.join(cwd, "app/page.tsx"), mainPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/page.tsx"),
+    mainPage,
+    "Main landing page with setup guide"
+  );
 
   // Create enhanced pricing page
   const pricingPage = `"use client";
@@ -497,8 +537,11 @@ export default function PricingPage() {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/pricing"));
-  await fs.writeFile(path.join(cwd, "app/pricing/page.tsx"), pricingPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/pricing/page.tsx"),
+    pricingPage,
+    "Pricing page"
+  );
 
   // Create enhanced billing settings page
   const billingPage = `"use client";
@@ -612,8 +655,11 @@ export default function BillingPage() {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/billing"));
-  await fs.writeFile(path.join(cwd, "app/billing/page.tsx"), billingPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/billing/page.tsx"),
+    billingPage,
+    "Billing dashboard page"
+  );
 
   // Create enhanced demo page
   const demoPage = `"use client";
@@ -800,11 +846,13 @@ export default function DemoPage() {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/demo"));
-  await fs.writeFile(path.join(cwd, "app/demo/page.tsx"), demoPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/demo/page.tsx"),
+    demoPage,
+    "Demo/playground page"
+  );
 
-  // Create API routes for checkout and portal
-  await createApiRoutes(cwd);
+  console.log(chalk.green("✅ SaaS template files created successfully\n"));
 }
 
 async function createApiRoutes(cwd: string): Promise<void> {
@@ -839,8 +887,11 @@ export async function POST(req: NextRequest) {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/api/billing/checkout"));
-  await fs.writeFile(path.join(cwd, "app/api/billing/checkout/route.ts"), checkoutRoute);
+  await writeTemplateFile(
+    path.join(cwd, "app/api/billing/checkout/route.ts"),
+    checkoutRoute,
+    "Checkout API route"
+  );
 
   // Portal API route
   const portalRoute = `import { NextRequest, NextResponse } from "next/server";
@@ -873,14 +924,19 @@ export async function POST(req: NextRequest) {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/api/billing/portal"));
-  await fs.writeFile(path.join(cwd, "app/api/billing/portal/route.ts"), portalRoute);
+  await writeTemplateFile(
+    path.join(cwd, "app/api/billing/portal/route.ts"),
+    portalRoute,
+    "Billing portal API route"
+  );
 }
 
 async function installApiTemplate(
   cwd: string,
   _products: Array<{ id: string; name: string; priceId: string }>
 ): Promise<void> {
+  console.log(chalk.blue("\n📄 Creating API template pages..."));
+
   // Install usage meter component
   await addCommand("usage-meter", { path: "components/billing", cwd });
 
@@ -1116,7 +1172,11 @@ export async function POST(req: Request) {
 }
 `;
 
-  await fs.writeFile(path.join(cwd, "app/page.tsx"), mainPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/page.tsx"),
+    mainPage,
+    "Main page with setup guide"
+  );
 
   // API-focused template with usage tracking
   const apiRoute = `import { NextRequest, NextResponse } from "next/server";
@@ -1136,8 +1196,11 @@ export async function POST(req: NextRequest) {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/api/example"));
-  await fs.writeFile(path.join(cwd, "app/api/example/route.ts"), apiRoute);
+  await writeTemplateFile(
+    path.join(cwd, "app/api/example/route.ts"),
+    apiRoute,
+    "Example API route"
+  );
 
   // Middleware for subscription checks
   const middleware = `import { NextResponse } from "next/server";
@@ -1164,13 +1227,21 @@ export const config = {
 };
 `;
 
-  await fs.writeFile(path.join(cwd, "middleware.ts"), middleware);
+  await writeTemplateFile(
+    path.join(cwd, "middleware.ts"),
+    middleware,
+    "API middleware"
+  );
+
+  console.log(chalk.green("✅ API template files created successfully\n"));
 }
 
 async function installUsageTemplate(
   cwd: string,
   _products: Array<{ id: string; name: string; priceId: string }>
 ): Promise<void> {
+  console.log(chalk.blue("\n📄 Creating Usage template pages..."));
+
   // Install required components
   await addCommand("usage-meter", { path: "components/billing", cwd });
   await addCommand("upgrade-button", { path: "components/billing", cwd });
@@ -1437,7 +1508,11 @@ export default function HomePage() {
 }
 `;
 
-  await fs.writeFile(path.join(cwd, "app/page.tsx"), mainPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/page.tsx"),
+    mainPage,
+    "Main page with usage setup guide"
+  );
 
   // Usage-based billing focused dashboard page
   const dashboardPage = `"use client";
@@ -1560,6 +1635,11 @@ export default function UsageDashboard() {
 }
 `;
 
-  await fs.ensureDir(path.join(cwd, "app/dashboard"));
-  await fs.writeFile(path.join(cwd, "app/dashboard/page.tsx"), dashboardPage);
+  await writeTemplateFile(
+    path.join(cwd, "app/dashboard/page.tsx"),
+    dashboardPage,
+    "Usage dashboard page"
+  );
+
+  console.log(chalk.green("✅ Usage template files created successfully\n"));
 }

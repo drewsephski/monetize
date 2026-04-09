@@ -1,12 +1,309 @@
 #!/usr/bin/env node
-import{Command as bt}from"commander";import H from"chalk";import a from"chalk";import ae from"inquirer";import E from"ora";import N from"fs-extra";import C from"path";import{execa as U}from"execa";import D from"fs-extra";import L from"path";async function V(){let e=process.cwd(),r=L.join(e,"package.json");if(await D.pathExists(r)){let n=await D.readJson(r),t={...n.dependencies,...n.devDependencies};if(t.next){let s=await D.pathExists(L.join(e,"app")),o=await D.pathExists(L.join(e,"pages"));return{name:"nextjs",version:t.next,type:s?"app":o?"pages":"app"}}if(t.react)return{name:"react",version:t.react};if(t.vue||t["@vue/core"])return{name:"vue",version:t.vue||t["@vue/core"]};if(t.express)return{name:"express",version:t.express}}return await D.pathExists(L.join(e,"next.config.js"))||await D.pathExists(L.join(e,"next.config.ts"))||await D.pathExists(L.join(e,"next.config.mjs"))?{name:"nextjs",type:"app"}:await D.pathExists(L.join(e,"vite.config.ts"))?{name:"react"}:{name:"unknown"}}import Le from"stripe";async function Z(e,r,n){try{let o=await e.prices.search({query:`lookup_key:"${n.lookup_key}"`});if(o.data.length>0){let g=o.data[0],h=await e.products.retrieve(typeof g.product=="string"?g.product:g.product.id);return{productId:h.id,priceId:g.id,name:h.name}}}catch{}let t=await e.products.create(r),s=await e.prices.create({product:t.id,unit_amount:n.unit_amount,currency:n.currency,recurring:n.recurring,lookup_key:n.lookup_key});return{productId:t.id,priceId:s.id,name:t.name}}async function ce(e){let r=new Le(e,{apiVersion:"2023-10-16"}),n=[];try{let t=await Z(r,{name:"Pro",description:"For growing businesses",metadata:{tier:"pro",features:JSON.stringify(["10,000 API calls/mo","Unlimited projects","Priority support","Advanced analytics"])}},{unit_amount:2900,currency:"usd",recurring:{interval:"month"},lookup_key:`pro_monthly_${Date.now()}`});n.push({id:t.productId,name:t.name,priceId:t.priceId})}catch(t){console.warn("Failed to create Pro plan:",t instanceof Error?t.message:String(t))}try{let t=await Z(r,{name:"Enterprise",description:"For large organizations",metadata:{tier:"enterprise",features:JSON.stringify(["Unlimited API calls","Custom integrations","SLA guarantee","Dedicated support"])}},{unit_amount:9900,currency:"usd",recurring:{interval:"month"},lookup_key:`enterprise_monthly_${Date.now()}`});n.push({id:t.productId,name:t.name,priceId:t.priceId})}catch(t){console.warn("Failed to create Enterprise plan:",t instanceof Error?t.message:String(t))}try{let t=await Z(r,{name:"API Calls",description:"Per-call pricing for API usage",metadata:{type:"usage",unit:"api_call"}},{unit_amount:1,currency:"usd",recurring:{interval:"month",usage_type:"metered"},lookup_key:`api_calls_${Date.now()}`});n.push({id:t.productId,name:"API Calls (Usage)",priceId:t.priceId})}catch(t){console.warn("Failed to create Usage plan:",t instanceof Error?t.message:String(t))}if(n.length===0)throw new Error("Failed to create any Stripe products. Check your API key and try again.");return n}import k from"fs-extra";import S from"path";import P from"chalk";import Ae from"ora";import pe from"fs-extra";import de from"path";var ee={"pricing-table":{name:"PricingTable",description:"Beautiful pricing table with Stripe checkout integration",files:["pricing-table.tsx"]},"upgrade-button":{name:"UpgradeButton",description:"Smart upgrade button with plan comparison",files:["upgrade-button.tsx"]},"usage-meter":{name:"UsageMeter",description:"Real-time usage visualization with limits",files:["usage-meter.tsx"]},"current-plan":{name:"CurrentPlanBadge",description:"Shows current plan with upgrade CTA",files:["current-plan.tsx"]},"billing-portal":{name:"BillingPortalButton",description:"Opens Stripe customer portal",files:["billing-portal-button.tsx"]},"subscription-gate":{name:"SubscriptionGate",description:"Blocks content based on subscription status",files:["subscription-gate.tsx"]},"trial-banner":{name:"TrialBanner",description:"Shows trial status and countdown",files:["trial-banner.tsx"]},all:{name:"All Components",description:"Install all billing components",files:["pricing-table.tsx","upgrade-button.tsx","usage-meter.tsx","current-plan.tsx","billing-portal-button.tsx","subscription-gate.tsx","trial-banner.tsx","index.ts"]}};async function A(e,r){console.log(P.blue.bold(`
-\u{1F4E6} @drew/billing add
-`));let n=Object.keys(ee);n.includes(e)||(console.log(P.red(`Invalid component: ${e}
-`)),console.log(P.gray("Available components:")),n.forEach(c=>{if(c==="all")return;let p=ee[c];console.log(P.gray(`  \u2022 ${c}`)+` - ${p.description}`)}),console.log(P.gray("  \u2022 all - Install all components")),console.log(),process.exit(1));let t=ee[e],s=r.path||"components/billing",o=r.cwd||process.cwd(),g=de.join(o,s);console.log(P.gray(`Installing ${t.name}...
-`)),await pe.ensureDir(g);let h=Ae("Creating components...").start();try{for(let c of t.files){let p=Ue(c);await pe.writeFile(de.join(g,c),p)}h.succeed(`Installed ${t.name} to ${s}/`)}catch(c){h.fail("Failed to install component"),console.error(c),process.exit(1)}console.log(P.green.bold(`
-\u2705 Component installed!
-`)),console.log(P.gray("Usage:")),console.log(e==="all"?P.cyan(`import { PricingTable, UpgradeButton } from "${s}";`):P.cyan(`import { ${t.name} } from "${s}/${e.replace("billing-portal","billing-portal-button")}";`)),console.log(),console.log(P.gray("Documentation:"),P.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme")),console.log()}function Ue(e){return{"pricing-table.tsx":$e(),"upgrade-button.tsx":Be(),"usage-meter.tsx":Me(),"current-plan.tsx":Oe(),"billing-portal-button.tsx":Fe(),"subscription-gate.tsx":ze(),"trial-banner.tsx":Ke(),"index.ts":We()}[e]||`// ${e} - Component template
-export function Placeholder() { return null; }`}function $e(){return`"use client";
+
+// src/index.ts
+import { Command } from "commander";
+import chalk11 from "chalk";
+
+// src/commands/init.ts
+import chalk5 from "chalk";
+import inquirer2 from "inquirer";
+import ora2 from "ora";
+import fs6 from "fs-extra";
+import path6 from "path";
+import { execa as execa2 } from "execa";
+
+// src/utils/detect.ts
+import fs from "fs-extra";
+import path from "path";
+async function detectFramework() {
+  const cwd = process.cwd();
+  const packageJsonPath = path.join(cwd, "package.json");
+  if (await fs.pathExists(packageJsonPath)) {
+    const packageJson = await fs.readJson(packageJsonPath);
+    const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+    if (deps.next) {
+      const hasAppDir = await fs.pathExists(path.join(cwd, "app"));
+      const hasPagesDir = await fs.pathExists(path.join(cwd, "pages"));
+      return {
+        name: "nextjs",
+        version: deps.next,
+        type: hasAppDir ? "app" : hasPagesDir ? "pages" : "app"
+      };
+    }
+    if (deps.react) {
+      return { name: "react", version: deps.react };
+    }
+    if (deps.vue || deps["@vue/core"]) {
+      return { name: "vue", version: deps.vue || deps["@vue/core"] };
+    }
+    if (deps.express) {
+      return { name: "express", version: deps.express };
+    }
+  }
+  if (await fs.pathExists(path.join(cwd, "next.config.js")) || await fs.pathExists(path.join(cwd, "next.config.ts")) || await fs.pathExists(path.join(cwd, "next.config.mjs"))) {
+    return { name: "nextjs", type: "app" };
+  }
+  if (await fs.pathExists(path.join(cwd, "vite.config.ts"))) {
+    return { name: "react" };
+  }
+  return { name: "unknown" };
+}
+
+// src/utils/stripe.ts
+import Stripe from "stripe";
+async function findOrCreatePrice(stripe, productData, priceData) {
+  try {
+    const existingPrices = await stripe.prices.search({
+      query: `lookup_key:"${priceData.lookup_key}"`
+    });
+    if (existingPrices.data.length > 0) {
+      const existingPrice = existingPrices.data[0];
+      const product2 = await stripe.products.retrieve(
+        typeof existingPrice.product === "string" ? existingPrice.product : existingPrice.product.id
+      );
+      return {
+        productId: product2.id,
+        priceId: existingPrice.id,
+        name: product2.name
+      };
+    }
+  } catch {
+  }
+  const product = await stripe.products.create(productData);
+  const price = await stripe.prices.create({
+    product: product.id,
+    unit_amount: priceData.unit_amount,
+    currency: priceData.currency,
+    recurring: priceData.recurring,
+    lookup_key: priceData.lookup_key
+  });
+  return { productId: product.id, priceId: price.id, name: product.name };
+}
+async function createStripeProducts(apiKey) {
+  const stripe = new Stripe(apiKey, {
+    apiVersion: "2023-10-16"
+  });
+  const products = [];
+  try {
+    const pro = await findOrCreatePrice(
+      stripe,
+      {
+        name: "Pro",
+        description: "For growing businesses",
+        metadata: {
+          tier: "pro",
+          features: JSON.stringify([
+            "10,000 API calls/mo",
+            "Unlimited projects",
+            "Priority support",
+            "Advanced analytics"
+          ])
+        }
+      },
+      {
+        unit_amount: 2900,
+        currency: "usd",
+        recurring: { interval: "month" },
+        lookup_key: `pro_monthly_${Date.now()}`
+        // Unique lookup key
+      }
+    );
+    products.push({ id: pro.productId, name: pro.name, priceId: pro.priceId });
+  } catch (error) {
+    console.warn("Failed to create Pro plan:", error instanceof Error ? error.message : String(error));
+  }
+  try {
+    const enterprise = await findOrCreatePrice(
+      stripe,
+      {
+        name: "Enterprise",
+        description: "For large organizations",
+        metadata: {
+          tier: "enterprise",
+          features: JSON.stringify([
+            "Unlimited API calls",
+            "Custom integrations",
+            "SLA guarantee",
+            "Dedicated support"
+          ])
+        }
+      },
+      {
+        unit_amount: 9900,
+        currency: "usd",
+        recurring: { interval: "month" },
+        lookup_key: `enterprise_monthly_${Date.now()}`
+        // Unique lookup key
+      }
+    );
+    products.push({
+      id: enterprise.productId,
+      name: enterprise.name,
+      priceId: enterprise.priceId
+    });
+  } catch (error) {
+    console.warn("Failed to create Enterprise plan:", error instanceof Error ? error.message : String(error));
+  }
+  try {
+    const usage = await findOrCreatePrice(
+      stripe,
+      {
+        name: "API Calls",
+        description: "Per-call pricing for API usage",
+        metadata: {
+          type: "usage",
+          unit: "api_call"
+        }
+      },
+      {
+        unit_amount: 1,
+        // $0.01 per call
+        currency: "usd",
+        recurring: {
+          interval: "month",
+          usage_type: "metered"
+        },
+        lookup_key: `api_calls_${Date.now()}`
+        // Unique lookup key
+      }
+    );
+    products.push({
+      id: usage.productId,
+      name: "API Calls (Usage)",
+      priceId: usage.priceId
+    });
+  } catch (error) {
+    console.warn("Failed to create Usage plan:", error instanceof Error ? error.message : String(error));
+  }
+  if (products.length === 0) {
+    throw new Error("Failed to create any Stripe products. Check your API key and try again.");
+  }
+  return products;
+}
+
+// src/utils/templates.ts
+import fs3 from "fs-extra";
+import path3 from "path";
+import chalk2 from "chalk";
+
+// src/commands/add.ts
+import chalk from "chalk";
+import ora from "ora";
+import fs2 from "fs-extra";
+import path2 from "path";
+var COMPONENTS = {
+  "pricing-table": {
+    name: "PricingTable",
+    description: "Beautiful pricing table with Stripe checkout integration",
+    files: ["pricing-table.tsx"]
+  },
+  "upgrade-button": {
+    name: "UpgradeButton",
+    description: "Smart upgrade button with plan comparison",
+    files: ["upgrade-button.tsx"]
+  },
+  "usage-meter": {
+    name: "UsageMeter",
+    description: "Real-time usage visualization with limits",
+    files: ["usage-meter.tsx"]
+  },
+  "current-plan": {
+    name: "CurrentPlanBadge",
+    description: "Shows current plan with upgrade CTA",
+    files: ["current-plan.tsx"]
+  },
+  "billing-portal": {
+    name: "BillingPortalButton",
+    description: "Opens Stripe customer portal",
+    files: ["billing-portal-button.tsx"]
+  },
+  "subscription-gate": {
+    name: "SubscriptionGate",
+    description: "Blocks content based on subscription status",
+    files: ["subscription-gate.tsx"]
+  },
+  "trial-banner": {
+    name: "TrialBanner",
+    description: "Shows trial status and countdown",
+    files: ["trial-banner.tsx"]
+  },
+  "all": {
+    name: "All Components",
+    description: "Install all billing components",
+    files: [
+      "pricing-table.tsx",
+      "upgrade-button.tsx",
+      "usage-meter.tsx",
+      "current-plan.tsx",
+      "billing-portal-button.tsx",
+      "subscription-gate.tsx",
+      "trial-banner.tsx",
+      "index.ts"
+    ]
+  }
+};
+async function addCommand(component, options) {
+  console.log(chalk.blue.bold("\n\u{1F4E6} @drew/billing add\n"));
+  const validComponents = Object.keys(COMPONENTS);
+  if (!validComponents.includes(component)) {
+    console.log(chalk.red(`Invalid component: ${component}
+`));
+    console.log(chalk.gray("Available components:"));
+    validComponents.forEach((c) => {
+      if (c === "all") return;
+      const info = COMPONENTS[c];
+      console.log(chalk.gray(`  \u2022 ${c}`) + ` - ${info.description}`);
+    });
+    console.log(chalk.gray(`  \u2022 all - Install all components`));
+    console.log();
+    process.exit(1);
+  }
+  const componentInfo = COMPONENTS[component];
+  const installPath = options.path || "components/billing";
+  const cwd = options.cwd || process.cwd();
+  const fullPath = path2.join(cwd, installPath);
+  console.log(chalk.gray(`Installing ${componentInfo.name}...
+`));
+  await fs2.ensureDir(fullPath);
+  const spinner = ora("Creating components...").start();
+  try {
+    for (const file of componentInfo.files) {
+      const content = getComponentTemplate(file);
+      await fs2.writeFile(path2.join(fullPath, file), content);
+    }
+    spinner.succeed(`Installed ${componentInfo.name} to ${installPath}/`);
+  } catch (error) {
+    spinner.fail("Failed to install component");
+    console.error(error);
+    process.exit(1);
+  }
+  console.log(chalk.green.bold("\n\u2705 Component installed!\n"));
+  console.log(chalk.gray("Usage:"));
+  if (component === "all") {
+    console.log(chalk.cyan(`import { PricingTable, UpgradeButton } from "${installPath}";`));
+  } else {
+    console.log(chalk.cyan(`import { ${componentInfo.name} } from "${installPath}/${component.replace("billing-portal", "billing-portal-button")}";`));
+  }
+  console.log();
+  console.log(chalk.gray("Documentation:"), chalk.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
+  console.log();
+}
+function getComponentTemplate(filename) {
+  const templates = {
+    "pricing-table.tsx": getPricingTableTemplate(),
+    "upgrade-button.tsx": getUpgradeButtonTemplate(),
+    "usage-meter.tsx": getUsageMeterTemplate(),
+    "current-plan.tsx": getCurrentPlanTemplate(),
+    "billing-portal-button.tsx": getBillingPortalTemplate(),
+    "subscription-gate.tsx": getSubscriptionGateTemplate(),
+    "trial-banner.tsx": getTrialBannerTemplate(),
+    "index.ts": getIndexTemplate()
+  };
+  return templates[filename] || `// ${filename} - Component template
+export function Placeholder() { return null; }`;
+}
+function getPricingTableTemplate() {
+  return `"use client";
 
 import { useState } from "react";
 
@@ -134,7 +431,10 @@ export function PricingTable({
     </div>
   );
 }
-`}function Be(){return`"use client";
+`;
+}
+function getUpgradeButtonTemplate() {
+  return `"use client";
 
 import { useState } from "react";
 
@@ -203,7 +503,10 @@ export function UpgradeButton({
     </button>
   );
 }
-`}function Me(){return`"use client";
+`;
+}
+function getUsageMeterTemplate() {
+  return `"use client";
 
 import { useEffect, useState } from "react";
 
@@ -317,7 +620,10 @@ export function UsageMeter({
     </div>
   );
 }
-`}function Oe(){return`"use client";
+`;
+}
+function getCurrentPlanTemplate() {
+  return `"use client";
 
 interface CurrentPlanProps {
   plan: string;
@@ -416,7 +722,10 @@ export function CurrentPlanBadge({
     </div>
   );
 }
-`}function Fe(){return`"use client";
+`;
+}
+function getBillingPortalTemplate() {
+  return `"use client";
 
 import { useState } from "react";
 
@@ -474,7 +783,10 @@ export function BillingPortalButton({
     </button>
   );
 }
-`}function ze(){return`"use client";
+`;
+}
+function getSubscriptionGateTemplate() {
+  return `"use client";
 
 interface SubscriptionGateProps {
   hasSubscription: boolean;
@@ -533,7 +845,10 @@ export function SubscriptionGate({
     </div>
   );
 }
-`}function Ke(){return`"use client";
+`;
+}
+function getTrialBannerTemplate() {
+  return `"use client";
 
 import { useState } from "react";
 
@@ -621,17 +936,381 @@ export function TrialBanner({
     </div>
   );
 }
-`}function We(){return`export { PricingTable } from "./pricing-table";
+`;
+}
+function getIndexTemplate() {
+  return `export { PricingTable } from "./pricing-table";
 export { UpgradeButton } from "./upgrade-button";
 export { UsageMeter } from "./usage-meter";
 export { CurrentPlanBadge } from "./current-plan";
 export { BillingPortalButton } from "./billing-portal-button";
 export { SubscriptionGate } from "./subscription-gate";
 export { TrialBanner } from "./trial-banner";
-`}async function ue(e,r,n){let t=n||process.cwd();switch(e){case"saas":await qe(t,r);break;case"api":await Ye(t,r);break;case"usage":await Je(t,r);break;case"minimal":break;default:throw new Error(`Unknown template: ${e}`)}}async function qe(e,r){await A("all",{path:"components/billing",cwd:e});let n=r.find(p=>p.name==="Pro"),t=r.find(p=>p.name==="Enterprise"),s=n?.priceId||"price_placeholder_pro",o=t?.priceId||"price_placeholder_enterprise",g=`"use client";
+`;
+}
+
+// src/utils/templates.ts
+async function writeTemplateFile(filePath, content, description) {
+  try {
+    await fs3.ensureDir(path3.dirname(filePath));
+    await fs3.writeFile(filePath, content, "utf-8");
+    const exists = await fs3.pathExists(filePath);
+    if (!exists) {
+      throw new Error(`Verification failed: ${filePath} was not created`);
+    }
+    const stats = await fs3.stat(filePath);
+    console.log(chalk2.gray(`  \u2713 ${description} (${stats.size} bytes)`));
+  } catch (error) {
+    console.error(chalk2.red(`  \u2717 Failed to write ${description}:`));
+    console.error(chalk2.red(`    ${filePath}`));
+    if (error instanceof Error) {
+      console.error(chalk2.red(`    ${error.message}`));
+    }
+    throw error;
+  }
+}
+async function installTemplates(templateType, products, projectCwd) {
+  const cwd = projectCwd || process.cwd();
+  switch (templateType) {
+    case "saas":
+      await installSaasTemplate(cwd, products);
+      break;
+    case "api":
+      await installApiTemplate(cwd, products);
+      break;
+    case "usage":
+      await installUsageTemplate(cwd, products);
+      break;
+    case "minimal":
+      break;
+    default:
+      throw new Error(`Unknown template: ${templateType}`);
+  }
+}
+async function installSaasTemplate(cwd, products) {
+  console.log(chalk2.blue("\n\u{1F4C4} Creating SaaS template pages..."));
+  await addCommand("all", { path: "components/billing", cwd });
+  const proProduct = products.find((p) => p.name === "Pro");
+  const enterpriseProduct = products.find((p) => p.name === "Enterprise");
+  const proPriceId = proProduct?.priceId || "price_placeholder_pro";
+  const enterprisePriceId = enterpriseProduct?.priceId || "price_placeholder_enterprise";
+  const mainPage = `"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { 
+  CreditCard, 
+  Settings, 
+  Zap, 
+  CheckCircle2, 
+  ArrowRight, 
+  AlertCircle,
+  Terminal,
+  Database,
+  Webhook,
+  Sparkles,
+  LayoutGrid,
+  FileCode,
+  ExternalLink
+} from "lucide-react";
+
+const steps = [
+  {
+    id: "env",
+    title: "Configure Environment",
+    description: "Add your Stripe keys to .env.local",
+    icon: Settings,
+    check: () => typeof process !== 'undefined' && !!process.env.STRIPE_SECRET_KEY,
+    action: {
+      label: "View .env.example",
+      href: "/api/env-help",
+    }
+  },
+  {
+    id: "webhook",
+    title: "Start Webhook Listener",
+    description: "Run the Stripe CLI to receive webhooks locally",
+    icon: Webhook,
+    check: () => false,
+    action: {
+      label: "Copy Command",
+      command: "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    }
+  },
+  {
+    id: "database",
+    title: "Setup Database",
+    description: "Run migrations to create the billing tables",
+    icon: Database,
+    check: () => false,
+    action: {
+      label: "Run Migration",
+      command: "npx drizzle-kit push",
+    }
+  },
+  {
+    id: "stripe",
+    title: "Configure Stripe",
+    description: "Create products and set up your Stripe dashboard",
+    icon: CreditCard,
+    check: () => false,
+    action: {
+      label: "Open Stripe Dashboard",
+      href: "https://dashboard.stripe.com",
+      external: true,
+    }
+  },
+];
+
+const pages = [
+  {
+    title: "Pricing Page",
+    description: "Showcase your subscription plans with a beautiful, conversion-optimized design",
+    href: "/pricing",
+    icon: CreditCard,
+    color: "bg-[#b8860b]/10 text-[#b8860b]",
+  },
+  {
+    title: "Billing Dashboard",
+    description: "Let customers manage their subscription, payment methods, and billing history",
+    href: "/billing",
+    icon: Settings,
+    color: "bg-[#1c1917]/10 text-[#1c1917]",
+  },
+  {
+    title: "Usage Demo",
+    description: "Interactive demo showing usage tracking and upgrade flows in action",
+    href: "/demo",
+    icon: Zap,
+    color: "bg-[#22c55e]/10 text-[#15803d]",
+  },
+];
+
+export default function HomePage() {
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCommand(text);
+    setTimeout(() => setCopiedCommand(null), 2000);
+  };
+
+  return (
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1c1917]">
+                <Sparkles className="h-4 w-4 text-[#b8860b]" />
+              </div>
+              <span className="font-semibold text-[#1c1917]">@drew/billing</span>
+            </div>
+            <a 
+              href="https://github.com/drewsephski/monetize"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
+            >
+              <FileCode className="h-4 w-4" />
+              Documentation
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        {/* Welcome Section */}
+        <div className="mb-12">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#22c55e]/10 px-3 py-1 text-xs font-medium text-[#15803d] mb-4">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Setup Complete
+          </div>
+          <h1 className="text-3xl font-bold text-[#1c1917] tracking-tight mb-3">
+            Welcome to your billing system
+          </h1>
+          <p className="text-lg text-[#78716c] max-w-2xl">
+            Your Next.js app now has a complete Stripe integration. Follow the steps below to finish the configuration and start accepting payments.
+          </p>
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Setup Steps */}
+          <div className="lg:col-span-2 space-y-6">
+            <h2 className="text-lg font-semibold text-[#1c1917] flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-[#b8860b]" />
+              Setup Checklist
+            </h2>
+            
+            <div className="space-y-4">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                const isComplete = step.check();
+                
+                return (
+                  <div 
+                    key={step.id}
+                    className={\`
+                      relative rounded-2xl border p-5 transition-all duration-200
+                      \${isComplete 
+                        ? "border-[#22c55e]/30 bg-[#22c55e]/5" 
+                        : "border-[#e7e5e4] bg-white hover:border-[#b8860b]/30"
+                      }
+                    \`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={\`
+                        flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                        \${isComplete ? "bg-[#22c55e]/20" : "bg-[#fafaf9] border border-[#e7e5e4]"}
+                      \`}>
+                        {isComplete ? (
+                          <CheckCircle2 className="h-5 w-5 text-[#22c55e]" />
+                        ) : (
+                          <Icon className="h-5 w-5 text-[#a8a29e]" />
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className={\`font-medium \${isComplete ? "text-[#15803d]" : "text-[#1c1917]"}\`}>
+                            {step.title}
+                          </h3>
+                          <span className="text-xs text-[#a8a29e]">Step {index + 1}</span>
+                        </div>
+                        <p className="text-sm text-[#78716c] mb-3">
+                          {step.description}
+                        </p>
+                        
+                        {step.action.command ? (
+                          <button
+                            onClick={() => copyToClipboard(step.action.command!)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-3 py-2 text-sm font-mono text-[#57534e] hover:border-[#b8860b]/50 hover:bg-[#fafaf9] transition-all"
+                          >
+                            <Terminal className="h-3.5 w-3.5 text-[#a8a29e]" />
+                            <span className="truncate max-w-[200px]">{step.action.command}</span>
+                            {copiedCommand === step.action.command ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-[#22c55e]" />
+                            ) : (
+                              <span className="text-xs text-[#a8a29e]">Click to copy</span>
+                            )}
+                          </button>
+                        ) : (
+                          <a
+                            href={step.action.href}
+                            target={step.action.external ? "_blank" : undefined}
+                            rel={step.action.external ? "noopener noreferrer" : undefined}
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#1c1917] px-4 py-2 text-sm font-medium text-white hover:bg-[#292524] transition-colors"
+                          >
+                            {step.action.label}
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Help Box */}
+            <div className="rounded-2xl border border-[#e7e5e4] bg-white p-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#3b82f6]/10">
+                  <AlertCircle className="h-5 w-5 text-[#3b82f6]" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-[#1c1917] mb-1">Need help?</h3>
+                  <p className="text-sm text-[#78716c] mb-3">
+                    Run the diagnostic command to check your setup and get personalized guidance.
+                  </p>
+                  <button
+                    onClick={() => copyToClipboard("npx @drew/billing doctor")}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-3 py-2 text-sm font-mono text-[#57534e] hover:border-[#b8860b]/50 transition-all"
+                  >
+                    <Terminal className="h-3.5 w-3.5 text-[#a8a29e]" />
+                    npx @drew/billing doctor
+                    {copiedCommand === "npx @drew/billing doctor" && (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-[#22c55e] ml-2" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pages Navigation */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-[#1c1917] flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4 text-[#b8860b]" />
+              Your Pages
+            </h2>
+            
+            <div className="space-y-3">
+              {pages.map((page) => {
+                const Icon = page.icon;
+                return (
+                  <Link
+                    key={page.href}
+                    href={page.href}
+                    className="group block rounded-2xl border border-[#e7e5e4] bg-white p-5 transition-all duration-200 hover:border-[#b8860b]/30 hover:shadow-lg hover:shadow-[#b8860b]/5"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={\`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl \${page.color}\`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-[#1c1917]">{page.title}</h3>
+                          <ArrowRight className="h-3.5 w-3.5 text-[#a8a29e] opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                        </div>
+                        <p className="text-sm text-[#78716c] leading-relaxed">
+                          {page.description}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-5">
+              <h3 className="text-sm font-medium text-[#1c1917] mb-4">Template Stats</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Components</span>
+                  <span className="font-medium text-[#1c1917]">6 pre-built</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Pages</span>
+                  <span className="font-medium text-[#1c1917]">3 created</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">API Routes</span>
+                  <span className="font-medium text-[#1c1917]">2 ready</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/page.tsx"),
+    mainPage,
+    "Main landing page with setup guide"
+  );
+  const pricingPage = `"use client";
 
 import { PricingTable } from "@/components/billing";
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, Sparkles } from "lucide-react";
 
 const plans = [
   {
@@ -642,7 +1321,7 @@ const plans = [
     priceLabel: "Free",
     currency: "usd",
     interval: "month" as const,
-    features: ["1,000 API calls/mo", "1 project", "Community support"],
+    features: ["1,000 API calls/mo", "1 project", "Community support", "Basic analytics"],
     cta: "Get Started",
     popular: false,
   },
@@ -658,10 +1337,11 @@ const plans = [
       "Unlimited projects",
       "Priority support",
       "Advanced analytics",
+      "Custom domains",
     ],
     cta: "Upgrade to Pro",
     popular: true,
-    priceId: "${s}",
+    priceId: "${proPriceId}",
   },
   {
     id: "enterprise",
@@ -675,10 +1355,11 @@ const plans = [
       "Custom integrations",
       "SLA guarantee",
       "Dedicated support",
+      "SSO & advanced security",
     ],
     cta: "Contact Sales",
     popular: false,
-    priceId: "${o}",
+    priceId: "${enterprisePriceId}",
   },
 ];
 
@@ -687,7 +1368,11 @@ export default function PricingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubscribe = async (planId: string, priceId?: string) => {
-    if (!priceId) return;
+    if (!priceId) {
+      // Free plan - no checkout needed
+      console.log("Selected free plan:", planId);
+      return;
+    }
     
     try {
       const response = await fetch("/api/billing/checkout", {
@@ -708,32 +1393,73 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="container mx-auto py-16 px-4">
-      <h1 className="text-4xl font-bold text-center mb-4">
-        Simple, transparent pricing
-      </h1>
-      <p className="text-center text-gray-600 mb-12">
-        Choose the plan that works for you
-      </p>
-      
-      {error && (
-        <div className="max-w-2xl mx-auto mb-8 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+          </div>
         </div>
-      )}
-      
-      <PricingTable
-        plans={plans}
-        userId={userId}
-        onSubscribe={handleSubscribe}
-      />
-    </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#b8860b]/10 px-3 py-1 text-xs font-medium text-[#b8860b] mb-4">
+            <Sparkles className="h-3.5 w-3.5" />
+            Simple, transparent pricing
+          </div>
+          <h1 className="text-4xl font-bold text-[#1c1917] tracking-tight mb-4">
+            Choose your plan
+          </h1>
+          <p className="text-lg text-[#78716c] max-w-2xl mx-auto">
+            Start free and scale as you grow. All plans include core features with no hidden fees.
+          </p>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="max-w-2xl mx-auto mb-8 rounded-xl border border-[#ef4444]/30 bg-[#ef4444]/5 p-4 text-[#dc2626]">
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
+        
+        {/* Pricing Table */}
+        <PricingTable
+          plans={plans}
+          userId={userId}
+          onSubscribe={handleSubscribe}
+        />
+
+        {/* Trust Indicators */}
+        <div className="mt-12 text-center">
+          <p className="text-sm text-[#a8a29e]">
+            Secure payment processing by Stripe. Cancel anytime.
+          </p>
+        </div>
+      </div>
+    </main>
   );
 }
-`;await k.ensureDir(S.join(e,"app/pricing")),await k.writeFile(S.join(e,"app/pricing/page.tsx"),g);let h=`"use client";
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/pricing/page.tsx"),
+    pricingPage,
+    "Pricing page"
+  );
+  const billingPage = `"use client";
 
-import { BillingPortalButton, CurrentPlanBadge } from "@/components/billing";
+import { BillingPortalButton, CurrentPlanBadge, UsageMeter } from "@/components/billing";
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, CreditCard, Receipt, BarChart3 } from "lucide-react";
 
 export default function BillingPage() {
   const [userId] = useState("user_" + Math.random().toString(36).slice(2));
@@ -754,152 +1480,524 @@ export default function BillingPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-2xl px-4">
-      <h1 className="text-2xl font-bold mb-8">Billing</h1>
-      
-      <div className="space-y-6">
-        <div className="border border-gray-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Current Plan</h2>
-          <CurrentPlanBadge 
-            plan="free"
-            status="active"
-            features={["1,000 API calls/mo", "1 project", "Community support"]}
-          />
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-4xl px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-4xl px-6 py-12">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[#1c1917] tracking-tight mb-2">
+            Billing & Subscription
+          </h1>
+          <p className="text-[#78716c]">
+            Manage your plan, payment methods, and billing history
+          </p>
         </div>
         
-        <div className="border border-gray-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
-          <BillingPortalButton 
-            userId={userId}
-            onOpenPortal={handleOpenPortal}
-          />
+        <div className="grid gap-6">
+          {/* Current Plan */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b]/10">
+                <CreditCard className="h-4 w-4 text-[#b8860b]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Current Plan</h2>
+            </div>
+            <CurrentPlanBadge 
+              plan="free"
+              status="active"
+              features={["1,000 API calls/mo", "1 project", "Community support", "Basic analytics"]}
+            />
+          </section>
+
+          {/* Usage */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#22c55e]/10">
+                <BarChart3 className="h-4 w-4 text-[#15803d]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Usage This Month</h2>
+            </div>
+            <UsageMeter 
+              userId={userId}
+              feature="api_calls"
+              limit={1000}
+              current={245}
+              label="API Calls"
+            />
+          </section>
+
+          {/* Payment Method */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1c1917]/10">
+                <Receipt className="h-4 w-4 text-[#1c1917]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Billing Portal</h2>
+            </div>
+            <div className="rounded-2xl border border-[#e7e5e4] bg-white p-6">
+              <p className="text-sm text-[#78716c] mb-4">
+                Manage your payment methods, view invoices, and update billing information through Stripe&apos;s secure customer portal.
+              </p>
+              <BillingPortalButton 
+                userId={userId}
+                onOpenPortal={handleOpenPortal}
+              />
+            </div>
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
-`;await k.ensureDir(S.join(e,"app/billing")),await k.writeFile(S.join(e,"app/billing/page.tsx"),h);let c=`"use client";
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/billing/page.tsx"),
+    billingPage,
+    "Billing dashboard page"
+  );
+  const demoPage = `"use client";
 
 import { useState } from "react";
-import { UsageMeter, UpgradeButton } from "@/components/billing";
+import { UsageMeter, UpgradeButton, CurrentPlanBadge, TrialBanner, SubscriptionGate } from "@/components/billing";
+import Link from "next/link";
+import { ArrowLeft, Play, Sparkles, Lock, TrendingUp } from "lucide-react";
 
 export default function DemoPage() {
   const [userId] = useState("demo-user-" + Math.random().toString(36).slice(2));
   const [apiCalls, setApiCalls] = useState(750);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   const handleUpgrade = async (targetPlan: string) => {
-    // Implement your upgrade logic here
     console.log("Upgrading to", targetPlan);
+    // Simulate upgrade
+    setTimeout(() => setHasSubscription(true), 1000);
   };
 
+  const trialEndDate = new Date();
+  trialEndDate.setDate(trialEndDate.getDate() + 5);
+
   return (
-    <div className="container mx-auto py-8 max-w-4xl px-4">
-      <h1 className="text-3xl font-bold mb-8">Billing Demo</h1>
-      
-      <div className="grid gap-6">
-        <div className="border border-gray-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Usage Tracking</h2>
-          <UsageMeter 
-            userId={userId} 
-            feature="api_calls" 
-            limit={1000}
-            current={apiCalls}
-            label="API Calls this month"
-          />
-          <div className="mt-4 flex gap-2">
-            <button 
-              onClick={() => setApiCalls(c => Math.min(c + 50, 1000))}
-              className="px-3 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200"
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-4xl px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
             >
-              +50 calls
-            </button>
-            <button 
-              onClick={() => setApiCalls(c => Math.max(c - 50, 0))}
-              className="px-3 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200"
-            >
-              -50 calls
-            </button>
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
           </div>
         </div>
+      </header>
+
+      <div className="mx-auto max-w-4xl px-6 py-12">
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#3b82f6]/10 px-3 py-1 text-xs font-medium text-[#2563eb] mb-4">
+            <Play className="h-3.5 w-3.5" />
+            Interactive Demo
+          </div>
+          <h1 className="text-3xl font-bold text-[#1c1917] tracking-tight mb-2">
+            Billing Components Playground
+          </h1>
+          <p className="text-[#78716c]">
+            Explore all the billing components and see how they work together
+          </p>
+        </div>
         
-        <div className="border border-gray-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Upgrade</h2>
-          <div className="flex gap-4">
-            <UpgradeButton 
-              userId={userId}
-              currentPlan="free"
-              targetPlan="pro"
-              onUpgrade={handleUpgrade}
+        <div className="grid gap-6">
+          {/* Trial Banner Demo */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f59e0b]/10">
+                <Sparkles className="h-4 w-4 text-[#d97706]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Trial Banner</h2>
+            </div>
+            <TrialBanner 
+              trialEndsAt={trialEndDate.toISOString()}
+              onUpgrade={() => console.log("Upgrade clicked")}
+              onDismiss={() => console.log("Dismissed")}
             />
-            <UpgradeButton 
-              userId={userId}
-              currentPlan="free"
-              targetPlan="enterprise"
-              onUpgrade={handleUpgrade}
+          </section>
+
+          {/* Usage Meter Demo */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#22c55e]/10">
+                <TrendingUp className="h-4 w-4 text-[#15803d]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Usage Meter (Interactive)</h2>
+            </div>
+            <UsageMeter 
+              userId={userId} 
+              feature="api_calls" 
+              limit={1000}
+              current={apiCalls}
+              label="API Calls this month"
             />
+            <div className="mt-4 flex gap-2">
+              <button 
+                onClick={() => setApiCalls(c => Math.min(c + 50, 1000))}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] hover:border-[#b8860b]/50 hover:bg-[#fafaf9] transition-all"
+              >
+                +50 calls
+              </button>
+              <button 
+                onClick={() => setApiCalls(c => Math.max(c - 50, 0))}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] hover:border-[#b8860b]/50 hover:bg-[#fafaf9] transition-all"
+              >
+                -50 calls
+              </button>
+              <button 
+                onClick={() => setApiCalls(950)}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] hover:border-[#f59e0b]/50 hover:bg-[#f59e0b]/5 transition-all"
+              >
+                Near limit (95%)
+              </button>
+            </div>
+          </section>
+
+          {/* Current Plan & Upgrade */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b]/10">
+                  <Sparkles className="h-4 w-4 text-[#b8860b]" />
+                </div>
+                <h2 className="font-semibold text-[#1c1917]">Current Plan</h2>
+              </div>
+              <CurrentPlanBadge 
+                plan={hasSubscription ? "pro" : "free"}
+                status="active"
+                features={[
+                  "1,000 API calls/mo", 
+                  "1 project", 
+                  "Community support",
+                  hasSubscription && "Priority support",
+                  hasSubscription && "Advanced analytics",
+                ].filter(Boolean)}
+              />
+            </section>
+
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1c1917]/10">
+                  <TrendingUp className="h-4 w-4 text-[#1c1917]" />
+                </div>
+                <h2 className="font-semibold text-[#1c1917]">Upgrade Options</h2>
+              </div>
+              <div className="rounded-2xl border border-[#e7e5e4] bg-white p-6 space-y-3">
+                <UpgradeButton 
+                  userId={userId}
+                  currentPlan={hasSubscription ? "pro" : "free"}
+                  targetPlan="pro"
+                  onUpgrade={handleUpgrade}
+                  className="w-full"
+                />
+                <UpgradeButton 
+                  userId={userId}
+                  currentPlan={hasSubscription ? "pro" : "free"}
+                  targetPlan="enterprise"
+                  onUpgrade={handleUpgrade}
+                  className="w-full"
+                />
+              </div>
+            </section>
+          </div>
+
+          {/* Subscription Gate Demo */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ef4444]/10">
+                <Lock className="h-4 w-4 text-[#dc2626]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Subscription Gate</h2>
+            </div>
+            <SubscriptionGate
+              hasSubscription={hasSubscription}
+              requiredPlan="Pro"
+              onUpgrade={() => handleUpgrade("pro")}
+            >
+              <div className="rounded-2xl border border-[#22c55e]/30 bg-[#22c55e]/5 p-6">
+                <p className="text-sm text-[#15803d] font-medium">
+                  This is premium content only visible to subscribers!
+                </p>
+                <p className="text-sm text-[#57534e] mt-1">
+                  You have access to this feature because you have an active subscription.
+                </p>
+              </div>
+            </SubscriptionGate>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/demo/page.tsx"),
+    demoPage,
+    "Demo/playground page"
+  );
+  console.log(chalk2.green("\u2705 SaaS template files created successfully\n"));
+}
+async function installApiTemplate(cwd, _products) {
+  console.log(chalk2.blue("\n\u{1F4C4} Creating API template pages..."));
+  await addCommand("usage-meter", { path: "components/billing", cwd });
+  const mainPage = `"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { 
+  CheckCircle2, 
+  ArrowRight, 
+  Terminal,
+  Code2,
+  Key,
+  Shield,
+  Zap,
+  ExternalLink,
+  LayoutGrid
+} from "lucide-react";
+
+const steps = [
+  {
+    id: "api-keys",
+    title: "Generate API Keys",
+    description: "Create API keys for your users in your dashboard",
+    icon: Key,
+  },
+  {
+    id: "middleware",
+    title: "Add Middleware",
+    description: "We've created middleware.ts to protect your API routes",
+    icon: Shield,
+  },
+  {
+    id: "usage",
+    title: "Track Usage",
+    description: "Record API calls and enforce limits per subscription tier",
+    icon: Zap,
+  },
+];
+
+export default function HomePage() {
+  const [apiCalls, setApiCalls] = useState(245);
+
+  return (
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1c1917]">
+                <Code2 className="h-4 w-4 text-[#b8860b]" />
+              </div>
+              <span className="font-semibold text-[#1c1917]">API Billing Setup</span>
+            </div>
+            <a 
+              href="/api/example"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
+            >
+              <Terminal className="h-4 w-4" />
+              Test API
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        {/* Welcome Section */}
+        <div className="mb-12">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#22c55e]/10 px-3 py-1 text-xs font-medium text-[#15803d] mb-4">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            API Template Installed
+          </div>
+          <h1 className="text-3xl font-bold text-[#1c1917] tracking-tight mb-3">
+            Usage-based API billing
+          </h1>
+          <p className="text-lg text-[#78716c] max-w-2xl">
+            Your API is now configured with usage tracking and billing. Follow the steps below to complete the setup.
+          </p>
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Setup Steps */}
+          <div className="lg:col-span-2 space-y-6">
+            <h2 className="text-lg font-semibold text-[#1c1917] flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-[#b8860b]" />
+              Implementation Guide
+            </h2>
+            
+            <div className="space-y-4">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                
+                return (
+                  <div 
+                    key={step.id}
+                    className="relative rounded-2xl border border-[#e7e5e4] bg-white p-5 transition-all duration-200 hover:border-[#b8860b]/30"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fafaf9] border border-[#e7e5e4]">
+                        <Icon className="h-5 w-5 text-[#a8a29e]" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-[#1c1917]">
+                            {step.title}
+                          </h3>
+                          <span className="text-xs text-[#a8a29e]">Step {index + 1}</span>
+                        </div>
+                        <p className="text-sm text-[#78716c]">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Code Example */}
+            <div className="rounded-2xl border border-[#e7e5e4] bg-[#1c1917] p-5 overflow-hidden">
+              <div className="flex items-center gap-2 mb-4">
+                <Code2 className="h-4 w-4 text-[#b8860b]" />
+                <span className="text-sm font-medium text-white">Example API Route</span>
+              </div>
+              <pre className="text-sm text-[#a8a29e] overflow-x-auto">
+                <code>{\`// app/api/protected/route.ts
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  // 1. Authenticate user
+  const userId = req.headers.get("x-user-id");
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // 2. Check subscription & usage
+  const { withinLimit } = await checkUsage(userId);
+  if (!withinLimit) {
+    return NextResponse.json(
+      { error: "Usage limit exceeded" },
+      { status: 429 }
+    );
+  }
+
+  // 3. Track usage
+  await recordUsage(userId, "api_call");
+
+  // 4. Process request
+  return NextResponse.json({ success: true });
+}\`}</code>
+              </pre>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-[#1c1917] flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4 text-[#b8860b]" />
+              Resources
+            </h2>
+            
+            <div className="space-y-3">
+              {[
+                {
+                  title: "Middleware Config",
+                  description: "Protect your API routes",
+                  href: "/middleware.ts",
+                  icon: Shield,
+                },
+                {
+                  title: "Example Route",
+                  description: "Sample API implementation",
+                  href: "/api/example",
+                  icon: Code2,
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="group block rounded-2xl border border-[#e7e5e4] bg-white p-5 transition-all duration-200 hover:border-[#b8860b]/30 hover:shadow-lg hover:shadow-[#b8860b]/5"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1c1917]/10 text-[#1c1917]">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-[#1c1917]">{item.title}</h3>
+                          <ArrowRight className="h-3.5 w-3.5 text-[#a8a29e] opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                        </div>
+                        <p className="text-sm text-[#78716c] leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Stats */}
+            <div className="rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-5">
+              <h3 className="text-sm font-medium text-[#1c1917] mb-4">Template Features</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Rate Limiting</span>
+                  <span className="font-medium text-[#1c1917]">Ready</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Usage Tracking</span>
+                  <span className="font-medium text-[#1c1917]">Included</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Middleware</span>
+                  <span className="font-medium text-[#1c1917]">Configured</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
-`;await k.ensureDir(S.join(e,"app/demo")),await k.writeFile(S.join(e,"app/demo/page.tsx"),c),await Ve(e)}async function Ve(e){let r=`import { NextRequest, NextResponse } from "next/server";
-
-export async function POST(req: NextRequest) {
-  try {
-    const { priceId, userId } = await req.json();
-
-    if (!priceId || !userId) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // TODO: Implement your Stripe checkout session creation
-    // This is a placeholder that redirects to Stripe directly
-    // You'll need to implement this using the Stripe SDK
-
-    return NextResponse.json({ 
-      url: \`https://checkout.stripe.com/pay/placeholder?price=\${priceId}\` 
-    });
-  } catch (error) {
-    console.error("Checkout error:", error);
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
-    );
-  }
-}
-`;await k.ensureDir(S.join(e,"app/api/billing/checkout")),await k.writeFile(S.join(e,"app/api/billing/checkout/route.ts"),r);let n=`import { NextRequest, NextResponse } from "next/server";
-
-export async function POST(req: NextRequest) {
-  try {
-    const { userId, returnUrl } = await req.json();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Missing userId" },
-        { status: 400 }
-      );
-    }
-
-    // TODO: Implement your Stripe customer portal session creation
-    // This is a placeholder
-    // You'll need to implement this using the Stripe SDK
-
-    return NextResponse.json({ 
-      url: \`https://billing.stripe.com/p/session/placeholder?return=\${encodeURIComponent(returnUrl || "/billing")}\` 
-    });
-  } catch (error) {
-    console.error("Portal error:", error);
-    return NextResponse.json(
-      { error: "Failed to create portal session" },
-      { status: 500 }
-    );
-  }
-}
-`;await k.ensureDir(S.join(e,"app/api/billing/portal")),await k.writeFile(S.join(e,"app/api/billing/portal/route.ts"),n)}async function Ye(e,r){await A("usage-meter",{path:"components/billing",cwd:e});let n=`import { NextRequest, NextResponse } from "next/server";
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/page.tsx"),
+    mainPage,
+    "Main page with setup guide"
+  );
+  const apiRoute = `import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   const userId = req.headers.get("x-user-id");
@@ -914,7 +2012,13 @@ export async function POST(req: NextRequest) {
   // Your API logic here
   return NextResponse.json({ success: true });
 }
-`;await k.ensureDir(S.join(e,"app/api/example")),await k.writeFile(S.join(e,"app/api/example/route.ts"),n),await k.writeFile(S.join(e,"middleware.ts"),`import { NextResponse } from "next/server";
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/api/example/route.ts"),
+    apiRoute,
+    "Example API route"
+  );
+  const middleware = `import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
@@ -936,15 +2040,295 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: "/api/protected/:path*",
 };
-`)}async function Je(e,r){await A("usage-meter",{path:"components/billing",cwd:e}),await A("upgrade-button",{path:"components/billing",cwd:e});let n=`"use client";
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "middleware.ts"),
+    middleware,
+    "API middleware"
+  );
+  console.log(chalk2.green("\u2705 API template files created successfully\n"));
+}
+async function installUsageTemplate(cwd, _products) {
+  console.log(chalk2.blue("\n\u{1F4C4} Creating Usage template pages..."));
+  await addCommand("usage-meter", { path: "components/billing", cwd });
+  await addCommand("upgrade-button", { path: "components/billing", cwd });
+  const mainPage = `"use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { 
+  CheckCircle2, 
+  ArrowRight, 
+  Terminal,
+  BarChart3,
+  TrendingUp,
+  Zap,
+  ExternalLink,
+  LayoutGrid,
+  Sparkles
+} from "lucide-react";
 import { UsageMeter, UpgradeButton } from "@/components/billing";
+
+const steps = [
+  {
+    id: "connect",
+    title: "Connect Your Database",
+    description: "Usage records are stored in your database",
+    icon: Zap,
+  },
+  {
+    id: "track",
+    title: "Implement Usage Tracking",
+    description: "Call the usage API when users consume resources",
+    icon: BarChart3,
+  },
+  {
+    id: "tiers",
+    title: "Define Usage Tiers",
+    description: "Set limits for each subscription plan",
+    icon: TrendingUp,
+  },
+];
+
+export default function HomePage() {
+  const [userId] = useState("user_" + Math.random().toString(36).slice(2));
+  const [apiCalls, setApiCalls] = useState(750);
+  const [storage, setStorage] = useState(45);
+
+  const handleUpgrade = async (targetPlan: string) => {
+    console.log("Upgrading to", targetPlan);
+  };
+
+  return (
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1c1917]">
+                <TrendingUp className="h-4 w-4 text-[#b8860b]" />
+              </div>
+              <span className="font-semibold text-[#1c1917]">Usage Billing</span>
+            </div>
+            <a 
+              href="/dashboard"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Dashboard
+              <ArrowRight className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        {/* Welcome Section */}
+        <div className="mb-12">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#22c55e]/10 px-3 py-1 text-xs font-medium text-[#15803d] mb-4">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Usage Template Installed
+          </div>
+          <h1 className="text-3xl font-bold text-[#1c1917] tracking-tight mb-3">
+            Metered billing system
+          </h1>
+          <p className="text-lg text-[#78716c] max-w-2xl">
+            Track resource consumption and bill customers based on actual usage. Perfect for API credits, storage, or compute.
+          </p>
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Setup Steps */}
+          <div className="lg:col-span-2 space-y-6">
+            <h2 className="text-lg font-semibold text-[#1c1917] flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-[#b8860b]" />
+              Setup Checklist
+            </h2>
+            
+            <div className="space-y-4">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                
+                return (
+                  <div 
+                    key={step.id}
+                    className="relative rounded-2xl border border-[#e7e5e4] bg-white p-5 transition-all duration-200 hover:border-[#b8860b]/30"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fafaf9] border border-[#e7e5e4]">
+                        <Icon className="h-5 w-5 text-[#a8a29e]" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-[#1c1917]">
+                            {step.title}
+                          </h3>
+                          <span className="text-xs text-[#a8a29e]">Step {index + 1}</span>
+                        </div>
+                        <p className="text-sm text-[#78716c]">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Live Demo */}
+            <div className="rounded-2xl border border-[#e7e5e4] bg-white p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b]/10">
+                  <Sparkles className="h-4 w-4 text-[#b8860b]" />
+                </div>
+                <h2 className="font-semibold text-[#1c1917]">Live Usage Demo</h2>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <UsageMeter 
+                  userId={userId}
+                  feature="api_calls"
+                  limit={1000}
+                  current={apiCalls}
+                  label="API Calls this month"
+                />
+                <UsageMeter 
+                  userId={userId}
+                  feature="storage"
+                  limit={100}
+                  current={storage}
+                  label="Storage (GB)"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button 
+                  onClick={() => setApiCalls(c => Math.min(c + 50, 1000))}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-4 py-2 text-sm font-medium text-[#57534e] hover:border-[#b8860b]/50 hover:bg-[#fafaf9] transition-all"
+                >
+                  +50 API calls
+                </button>
+                <button 
+                  onClick={() => setStorage(c => Math.min(c + 5, 100))}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-4 py-2 text-sm font-medium text-[#57534e] hover:border-[#b8860b]/50 hover:bg-[#fafaf9] transition-all"
+                >
+                  +5 GB storage
+                </button>
+                <button 
+                  onClick={() => { setApiCalls(950); setStorage(95); }}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-4 py-2 text-sm font-medium text-[#57534e] hover:border-[#f59e0b]/50 hover:bg-[#f59e0b]/5 transition-all"
+                >
+                  Near limits
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-[#1c1917] flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4 text-[#b8860b]" />
+              Actions
+            </h2>
+            
+            <div className="rounded-2xl border border-[#e7e5e4] bg-white p-6 space-y-3">
+              <h3 className="text-sm font-medium text-[#1c1917] mb-3">Upgrade Plan</h3>
+              <UpgradeButton 
+                userId={userId}
+                currentPlan="free"
+                targetPlan="pro"
+                onUpgrade={handleUpgrade}
+                className="w-full"
+              />
+              <UpgradeButton 
+                userId={userId}
+                currentPlan="free"
+                targetPlan="enterprise"
+                onUpgrade={handleUpgrade}
+                className="w-full"
+              />
+            </div>
+
+            {/* Resources */}
+            <div className="space-y-3">
+              {[
+                {
+                  title: "Dashboard",
+                  description: "View full usage dashboard",
+                  href: "/dashboard",
+                  icon: BarChart3,
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="group block rounded-2xl border border-[#e7e5e4] bg-white p-5 transition-all duration-200 hover:border-[#b8860b]/30 hover:shadow-lg hover:shadow-[#b8860b]/5"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#22c55e]/10 text-[#15803d]">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-[#1c1917]">{item.title}</h3>
+                          <ArrowRight className="h-3.5 w-3.5 text-[#a8a29e] opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                        </div>
+                        <p className="text-sm text-[#78716c] leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Stats */}
+            <div className="rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-5">
+              <h3 className="text-sm font-medium text-[#1c1917] mb-4">Template Stats</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Components</span>
+                  <span className="font-medium text-[#1c1917]">2 installed</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Pages</span>
+                  <span className="font-medium text-[#1c1917]">2 created</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#78716c]">Meter Types</span>
+                  <span className="font-medium text-[#1c1917]">Unlimited</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/page.tsx"),
+    mainPage,
+    "Main page with usage setup guide"
+  );
+  const dashboardPage = `"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { UsageMeter, UpgradeButton } from "@/components/billing";
+import { ArrowLeft, BarChart3, Zap, TrendingUp } from "lucide-react";
 
 export default function UsageDashboard() {
   const [usage, setUsage] = useState({
     apiCalls: 5000,
     storage: 45,
+    compute: 230,
   });
   const [userId] = useState("user_" + Math.random().toString(36).slice(2));
 
@@ -953,68 +2337,725 @@ export default function UsageDashboard() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">Usage Dashboard</h1>
-      
-      <div className="grid gap-6 max-w-2xl">
-        <div className="border border-gray-200 rounded-lg p-6">
-          <UsageMeter 
-            userId={userId}
-            feature="api_calls"
-            limit={10000}
-            current={usage.apiCalls}
-            label="API Calls"
-          />
+    <main className="min-h-screen bg-[#fafaf9]">
+      {/* Header */}
+      <header className="border-b border-[#e7e5e4] bg-white">
+        <div className="mx-auto max-w-4xl px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/"
+              className="flex items-center gap-2 text-sm text-[#78716c] hover:text-[#1c1917] transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+          </div>
         </div>
-        <div className="border border-gray-200 rounded-lg p-6">
-          <UsageMeter
-            userId={userId}
-            feature="storage"
-            limit={100}
-            current={usage.storage}
-            label="Storage (GB)"
-          />
+      </header>
+
+      <div className="mx-auto max-w-4xl px-6 py-12">
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#22c55e]/10 px-3 py-1 text-xs font-medium text-[#15803d] mb-4">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Usage Dashboard
+          </div>
+          <h1 className="text-3xl font-bold text-[#1c1917] tracking-tight mb-2">
+            Resource Usage
+          </h1>
+          <p className="text-[#78716c]">
+            Monitor your consumption and upgrade when needed
+          </p>
         </div>
-        <div className="flex gap-4">
-          <UpgradeButton
-            userId={userId}
-            currentPlan="free"
-            targetPlan="pro"
-            onUpgrade={handleUpgrade}
-          />
+        
+        <div className="grid gap-6">
+          {/* Usage Meters */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b]/10">
+                <TrendingUp className="h-4 w-4 text-[#b8860b]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Current Usage</h2>
+            </div>
+            <div className="grid gap-4">
+              <UsageMeter 
+                userId={userId}
+                feature="api_calls"
+                limit={10000}
+                current={usage.apiCalls}
+                label="API Calls"
+              />
+              <UsageMeter
+                userId={userId}
+                feature="storage"
+                limit={100}
+                current={usage.storage}
+                label="Storage (GB)"
+              />
+              <UsageMeter
+                userId={userId}
+                feature="compute"
+                limit={500}
+                current={usage.compute}
+                label="Compute Hours"
+              />
+            </div>
+          </section>
+
+          {/* Upgrade Section */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1c1917]/10">
+                <Zap className="h-4 w-4 text-[#1c1917]" />
+              </div>
+              <h2 className="font-semibold text-[#1c1917]">Upgrade Plan</h2>
+            </div>
+            <div className="rounded-2xl border border-[#e7e5e4] bg-white p-6">
+              <p className="text-sm text-[#78716c] mb-4">
+                Need more resources? Upgrade your plan to increase your limits and access additional features.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <UpgradeButton
+                  userId={userId}
+                  currentPlan="free"
+                  targetPlan="pro"
+                  onUpgrade={handleUpgrade}
+                />
+                <UpgradeButton
+                  userId={userId}
+                  currentPlan="free"
+                  targetPlan="enterprise"
+                  onUpgrade={handleUpgrade}
+                />
+              </div>
+            </div>
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
-`;await k.ensureDir(S.join(e,"app/dashboard")),await k.writeFile(S.join(e,"app/dashboard/page.tsx"),n)}import ge from"fs-extra";import Ge from"path";async function me(e){let r=Ge.join(process.cwd(),".env.local"),n="";try{n=await ge.readFile(r,"utf-8")}catch{}for(let[t,s]of Object.entries(e)){let o=`${t}=${s}`;n.includes(`${t}=`)?n=n.replace(new RegExp(`${t}=.*`),o):(n+=n.endsWith(`
-`)?"":`
-`,n+=`${o}
-`)}await ge.writeFile(r,n)}import Y from"fs-extra";import J from"path";import{execa as Mt}from"execa";async function fe(){let e=process.cwd();return await Y.pathExists(J.join(e,"bun.lockb"))||await Y.pathExists(J.join(e,"bun.lock"))?"bun":await Y.pathExists(J.join(e,"pnpm-lock.yaml"))?"pnpm":await Y.pathExists(J.join(e,"yarn.lock"))?"yarn":"npm"}import{createHash as He}from"crypto";import{readFileSync as Xe,existsSync as ye,writeFileSync as Qe,mkdirSync as Ze}from"fs";import{homedir as we}from"os";import{join as ve}from"path";import Vt from"chalk";var te=ve(we(),".drew-billing"),ne=ve(te,"telemetry.json"),he=process.env.TELEMETRY_ENDPOINT||"";function be(){let e=`${we()}_${process.platform}_${process.arch}`;return He("sha256").update(e).digest("hex").substring(0,16)}function z(){try{if(ye(ne)){let e=JSON.parse(Xe(ne,"utf-8"));return{enabled:e.enabled??!1,machineId:e.machineId||be(),optedInAt:e.optedInAt}}}catch{}return{enabled:!1,machineId:be()}}function xe(e){try{ye(te)||Ze(te,{recursive:!0}),Qe(ne,JSON.stringify(e,null,2))}catch{}}function ke(){let e=z();e.enabled=!0,e.optedInAt=new Date().toISOString(),xe(e)}function Se(){let e=z();e.enabled=!1,xe(e)}function et(){return`cli_${Math.random().toString(36).substring(2,15)}_${Date.now()}`}function M(e,r){let n=z();if(!n.enabled)return;let t={type:e,timestamp:new Date().toISOString(),machineId:n.machineId,sessionId:et(),cliVersion:"1.0.0",metadata:r};tt(t).catch(()=>{})}function Pe(e,r,n){M(e,{...n,durationMs:r})}async function tt(e){if(!he){process.env.DEBUG==="true"&&console.log("[Telemetry]",e);return}try{await fetch(he,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)})}catch{}}var re={CLI_INSTALL:"cli_install",INIT_STARTED:"init_started",INIT_COMPLETED:"init_completed",SANDBOX_STARTED:"sandbox_started",FIRST_CHECKOUT:"first_checkout",FIRST_SUBSCRIPTION:"first_subscription"};function se(e,r){M(`funnel_${e}`,r)}import G from"chalk";import Ie from"inquirer";async function Ne(e,r){console.log(),console.log(G.blue.bold("\u{1F4E3} Quick Feedback")),console.log(G.gray("Your feedback helps us improve.")),console.log();try{let{wasEasy:n}=await Ie.prompt([{type:"confirm",name:"wasEasy",message:"Was this easy to set up?",default:!0}]),t;if(!n){let{feedback:s}=await Ie.prompt([{type:"input",name:"feedback",message:"What was difficult? (optional, 1 sentence)"}]);t=s}M("feedback_collected",{eventType:e,rating:n?"positive":"negative",feedback:t,...r}),console.log(),console.log(n?G.green("\u2728 Thanks! Glad it went smoothly."):G.yellow("\u{1F4DD} Thanks for the feedback \u2014 we'll use it to improve.")),console.log()}catch{}}async function Ce(e){console.log(a.blue.bold(`
-\u26A1 @drew/billing init
-`)),se(re.INIT_STARTED,{template:e.template});let r=Date.now(),n=process.cwd(),t=await nt(n),s=await N.pathExists(C.join(n,"package.json"));console.log(a.gray(`Debug: cwd=${n}, isEmptyDir=${t}, hasPackageJson=${s}`));let o="npm",g=C.basename(n),h={name:"nextjs"},c=!1;if(t||!s){console.log(a.yellow("\u{1F4C1} No existing project detected."));let l=e.yes;e.yes||(l=(await ae.prompt([{type:"confirm",name:"shouldScaffold",message:"Create a new Next.js project here?",default:!0}])).shouldScaffold),l||(console.log(a.gray(`
-Aborted. Please run this in an existing Next.js project directory.
-`)),process.exit(0));let d=await rt(n,e.yes);d.success||(console.log(a.red(`
-\u274C Failed to scaffold Next.js project.`)),console.log(a.gray(`Please try manually: npx create-next-app@latest .
-`)),process.exit(1)),o=d.pkgManager,g=d.projectName,c=!0,h={name:"nextjs",version:"latest"},console.log(a.green(`
-\u2705 Created Next.js project: ${g}
-`)),await N.pathExists(C.join(n,"package.json"))||(console.log(a.red(`
-\u274C Scaffolded project missing package.json`)),process.exit(1))}else{let l=E("Detecting framework...").start(),d=await V();if(h={name:d.name,version:d.version},d.name!=="nextjs"){l.warn(`Detected: ${d.name} (limited support)`),console.log(a.yellow(`
-\u26A0\uFE0F  Currently only Next.js is fully supported.`)),console.log(a.gray(`Other frameworks coming soon: React, Vue, Svelte, Express
-`));let{continueAnyway:q}=await ae.prompt([{type:"confirm",name:"continueAnyway",message:"Continue with manual setup?",default:!1}]);q||(console.log(a.gray(`
-Aborted.
-`)),process.exit(0))}else l.succeed(`Detected: ${a.green("Next.js")} ${d.version||""}`);o=await fe()}console.log(a.gray(`Using package manager: ${o}
-`));let p;e.yes?p={stripeSecretKey:process.env.STRIPE_SECRET_KEY||"",stripePublishableKey:process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY||"",webhookSecret:process.env.STRIPE_WEBHOOK_SECRET||"",databaseUrl:process.env.DATABASE_URL||"",template:e.template||"saas",createProducts:!e.skipStripe}:p={...await ae.prompt([{type:"input",name:"stripeSecretKey",message:"Stripe Secret Key (sk_test_...):",default:process.env.STRIPE_SECRET_KEY,validate:d=>d.startsWith("sk_test_")||d.startsWith("sk_live_")?!0:"Must start with sk_test_ or sk_live_"},{type:"input",name:"stripePublishableKey",message:"Stripe Publishable Key (pk_test_...):",default:process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,validate:d=>d.startsWith("pk_test_")||d.startsWith("pk_live_")?!0:"Must start with pk_test_ or pk_live_"},{type:"input",name:"databaseUrl",message:"Database URL (postgresql://...):",default:process.env.DATABASE_URL,validate:d=>!d||d.trim()===""?"Database URL is required (use your Neon or local Postgres URL)":!d.startsWith("postgresql://")&&!d.startsWith("postgres://")?"Must start with postgresql:// or postgres://":!0},{type:"list",name:"template",message:"Choose your template:",choices:[{name:"SaaS Starter (pricing page + auth + dashboard)",value:"saas"},{name:"API Billing (usage-based pricing)",value:"api"},{name:"Simple Usage (metered billing)",value:"usage"},{name:"Minimal (just the SDK)",value:"minimal"}],default:e.template||"saas"},{type:"confirm",name:"createProducts",message:"Create Stripe products automatically?",default:!e.skipStripe}]),webhookSecret:""},console.log(a.blue.bold(`
-\u{1F4E6} Setting up @drew/billing...
-`));let u={projectScaffolded:c,dependencies:!1,stripeProducts:!1,database:!1,templates:!1,env:!1},y=[],f=E("Installing core dependencies...").start();try{await oe(["stripe"],o,f,!1,2,n),f.succeed("Core dependencies installed"),u.dependencies=!0}catch(l){f.fail("Failed to install core dependencies");let d=l instanceof Error?l.message:String(l);y.push(`Dependencies: ${d}`),console.log(a.gray(`Run manually: ${o} ${o==="npm"?"install":"add"} stripe`))}let x=E("Installing database dependencies...").start();try{await oe(["drizzle-orm","@neondatabase/serverless","drizzle-kit"],o,x,!1,2,n),x.succeed("Database dependencies installed")}catch(l){x.fail("Failed to install database dependencies");let d=l instanceof Error?l.message:String(l);y.push(`DB Dependencies: ${d}`),console.log(a.gray(`Run manually: ${o} ${o==="npm"?"install":"add"} drizzle-orm @neondatabase/serverless drizzle-kit`))}let I=E("Installing dev dependencies...").start();try{await oe(["@types/node","typescript"],o,I,!0,2,n),I.succeed("Dev dependencies installed")}catch{I.warn("Some dev dependencies may need manual installation")}console.log(a.gray(`
-Note: @drew/billing-sdk will be available when published. For now, the CLI provides all needed components.
-`));let T=[];if(p.createProducts&&p.stripeSecretKey){let l=E("Creating Stripe products...").start();try{if(!p.stripeSecretKey.startsWith("sk_test_")&&!p.stripeSecretKey.startsWith("sk_live_"))throw new Error("Invalid Stripe secret key format");T=await ce(p.stripeSecretKey),l.succeed(`Created ${T.length} Stripe products`),u.stripeProducts=!0}catch(d){l.fail("Failed to create Stripe products");let q=d instanceof Error?d.message:String(d);y.push(`Stripe products: ${q}`),console.log(a.gray("You can create them manually in the Stripe Dashboard")),console.log(a.gray("Then update the price IDs in your code")),T=[{id:"prod_fallback",name:"Pro",priceId:"price_fallback_pro"},{id:"prod_fallback_2",name:"Enterprise",priceId:"price_fallback_enterprise"}]}}let X=E("Setting up database...").start();try{await st(n),await at(n,o,X),X.succeed("Database configured"),u.database=!0}catch(l){X.fail("Database setup failed");let d=l instanceof Error?l.message:String(l);y.push(`Database: ${d}`),console.log(a.gray("You can set up the database later by running:")),console.log(a.gray("  npx drizzle-kit push")),console.log(a.gray(`
-Make sure to set DATABASE_URL in your .env.local file`))}let ie=E(`Installing ${p.template} template...`).start();try{await N.ensureDir(C.join(n,"app")),await N.ensureDir(C.join(n,"components")),await ue(p.template,T,n),ie.succeed("Template installed"),u.templates=!0}catch(l){ie.fail("Template installation failed");let d=l instanceof Error?l.message:String(l);y.push(`Templates: ${d}`),console.log(a.gray("Try running:")),console.log(a.gray("  npx @drew/billing add all"))}let le=E("Updating environment variables...").start();try{let l={STRIPE_SECRET_KEY:p.stripeSecretKey,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:p.stripePublishableKey,STRIPE_WEBHOOK_SECRET:p.webhookSecret||"whsec_... (run: stripe listen --forward-to localhost:3000/api/webhooks/stripe)",DATABASE_URL:p.databaseUrl||"postgresql://username:password@localhost:5432/database_name",BILLING_API_URL:"http://localhost:3000"};await me(l),le.succeed("Environment variables configured"),u.env=!0}catch(l){le.fail("Failed to update .env");let d=l instanceof Error?l.message:String(l);y.push(`Environment: ${d}`)}let Q=Date.now()-r;if(se(re.INIT_COMPLETED,{template:p.template,durationMs:Q,framework:h.name,success:Object.values(u).every(l=>l)}),Pe("init_complete",Q),console.log(a.green.bold(`
-\u2705 Setup complete!
-`)),y.length>0&&(console.log(a.yellow("\u26A0\uFE0F  Some steps failed:")),y.forEach(l=>console.log(a.gray(`  \u2022 ${l}`))),console.log()),console.log(a.white(`Next steps:
-`)),u.projectScaffolded?(console.log(a.gray("1."),"Navigate to your project:",a.cyan(`cd ${g}`)),console.log(a.gray("2."),"Start your dev server:",a.cyan(`${o==="npm"?"npm run":o} dev`)),console.log(a.gray("3."),"Start Stripe webhook listener:",a.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"))):(console.log(a.gray("1."),"Start your dev server:",a.cyan(`${o==="npm"?"npm run":o} dev`)),console.log(a.gray("2."),"Start Stripe webhook listener:",a.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"))),u.templates){let l=u.projectScaffolded?"4":"3";console.log(a.gray(`${l}.`),"Visit",a.cyan("http://localhost:3000/pricing"))}u.database||(console.log(a.gray(`
-\u26A0\uFE0F  Database not configured. Add DATABASE_URL to .env.local and run:`)),console.log(a.gray("   npx drizzle-kit push"))),console.log(),console.log(a.gray("Documentation:"),a.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme")),console.log(a.gray("Diagnostics:"),a.cyan("npx drew-billing-cli doctor")),console.log(a.gray("Support:"),a.underline("https://github.com/drewsephski/monetize/issues")),console.log(),T.length>0&&u.stripeProducts?(console.log(a.gray("Created Stripe products:")),T.forEach(l=>{console.log(a.gray(`  \u2022 ${l.name}: ${l.priceId}`))}),console.log()):T.length>0&&(console.log(a.gray("Placeholder product IDs (update these in your code):")),T.forEach(l=>{console.log(a.gray(`  \u2022 ${l.name}: ${l.priceId}`))}),console.log()),console.log(a.blue("\u{1F4CA} Help improve @drew/billing")),console.log(a.gray("Enable anonymous telemetry to help us fix bugs faster.")),console.log(a.gray(`Run: npx @drew/billing telemetry --enable
-`)),await Ne("init_completed",{template:p.template,framework:h.name,durationMs:Q,results:u})}async function nt(e){try{return(await N.readdir(e)).filter(t=>!t.startsWith(".")&&t!=="node_modules").length===0}catch{return!0}}async function rt(e,r=!1){let n=C.basename(e),t="npm";try{await U("bun",["--version"],{stdio:"pipe"}),t="bun"}catch{try{await U("pnpm",["--version"],{stdio:"pipe"}),t="pnpm"}catch{try{await U("yarn",["--version"],{stdio:"pipe"}),t="yarn"}catch{}}}let s=E(`Creating Next.js project with ${t}...`).start();try{let o=t==="npm"?"npx":t,g=[...t==="npm"?["create-next-app@latest"]:["create","next-app"],".","--typescript","--tailwind","--eslint","--app","--src-dir=false","--import-alias","@/*",...r?["--yes"]:[]];return await U(o,g,{cwd:e,stdio:"pipe",timeout:3e5}),s.succeed("Next.js project created"),{success:!0,pkgManager:t,projectName:n}}catch{if(s.fail("Failed to create Next.js project"),t!=="npm"){s.text="Retrying with npm...",s.start();try{return await U("npx",["create-next-app@latest",".","--typescript","--tailwind","--eslint","--app","--src-dir=false","--import-alias","@/*",...r?["--yes"]:[]],{cwd:e,stdio:"pipe",timeout:3e5}),s.succeed("Next.js project created with npm"),{success:!0,pkgManager:"npm",projectName:n}}catch{return s.fail("All attempts failed"),{success:!1,pkgManager:"npm",projectName:n}}}return{success:!1,pkgManager:t,projectName:n}}}async function oe(e,r,n,t=!1,s=2,o){let g=r==="npm"?"install":"add",h=t?r==="npm"?"--save-dev":"-D":"",c=[g,...e,...h?[h]:[]],p=o||process.cwd();for(let u=1;u<=s;u++)try{n.text=`Installing dependencies (attempt ${u}/${s})...`,await U(r,c,{cwd:p,stdio:"pipe",timeout:12e4});return}catch(y){let f=y instanceof Error?y.message:String(y);if(console.log(a.gray(`  Install attempt ${u} failed: ${f.substring(0,100)}`)),u===s)throw y;await new Promise(x=>setTimeout(x,2e3))}}async function st(e){let r=C.join(e,"drizzle.config.ts");if(await N.pathExists(r)||await N.pathExists(C.join(e,"drizzle.config.js")))return;await N.writeFile(r,`import { defineConfig } from "drizzle-kit";
+`;
+  await writeTemplateFile(
+    path3.join(cwd, "app/dashboard/page.tsx"),
+    dashboardPage,
+    "Usage dashboard page"
+  );
+  console.log(chalk2.green("\u2705 Usage template files created successfully\n"));
+}
+
+// src/utils/env.ts
+import fs4 from "fs-extra";
+import path4 from "path";
+async function updateEnvFile(vars) {
+  const envPath = path4.join(process.cwd(), ".env.local");
+  let content = "";
+  try {
+    content = await fs4.readFile(envPath, "utf-8");
+  } catch {
+  }
+  for (const [key, value] of Object.entries(vars)) {
+    const line = `${key}=${value}`;
+    if (content.includes(`${key}=`)) {
+      content = content.replace(new RegExp(`${key}=.*`), line);
+    } else {
+      content += content.endsWith("\n") ? "" : "\n";
+      content += `${line}
+`;
+    }
+  }
+  await fs4.writeFile(envPath, content);
+}
+
+// src/utils/package-manager.ts
+import fs5 from "fs-extra";
+import path5 from "path";
+import { execa } from "execa";
+async function detectPackageManager() {
+  const cwd = process.cwd();
+  if (await fs5.pathExists(path5.join(cwd, "bun.lockb")) || await fs5.pathExists(path5.join(cwd, "bun.lock"))) {
+    return "bun";
+  }
+  if (await fs5.pathExists(path5.join(cwd, "pnpm-lock.yaml"))) {
+    return "pnpm";
+  }
+  if (await fs5.pathExists(path5.join(cwd, "yarn.lock"))) {
+    return "yarn";
+  }
+  return "npm";
+}
+
+// src/utils/telemetry.ts
+import { createHash } from "crypto";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
+import chalk3 from "chalk";
+var TELEMETRY_DIR = join(homedir(), ".drew-billing");
+var TELEMETRY_FILE = join(TELEMETRY_DIR, "telemetry.json");
+var TELEMETRY_ENDPOINT = process.env.TELEMETRY_ENDPOINT || "";
+function getMachineId() {
+  const data = `${homedir()}_${process.platform}_${process.arch}`;
+  return createHash("sha256").update(data).digest("hex").substring(0, 16);
+}
+function loadTelemetryConfig() {
+  try {
+    if (existsSync(TELEMETRY_FILE)) {
+      const data = JSON.parse(readFileSync(TELEMETRY_FILE, "utf-8"));
+      return {
+        enabled: data.enabled ?? false,
+        machineId: data.machineId || getMachineId(),
+        optedInAt: data.optedInAt
+      };
+    }
+  } catch {
+  }
+  return {
+    enabled: false,
+    machineId: getMachineId()
+  };
+}
+function saveTelemetryConfig(config) {
+  try {
+    if (!existsSync(TELEMETRY_DIR)) {
+      mkdirSync(TELEMETRY_DIR, { recursive: true });
+    }
+    writeFileSync(TELEMETRY_FILE, JSON.stringify(config, null, 2));
+  } catch {
+  }
+}
+function enableTelemetry() {
+  const config = loadTelemetryConfig();
+  config.enabled = true;
+  config.optedInAt = (/* @__PURE__ */ new Date()).toISOString();
+  saveTelemetryConfig(config);
+}
+function disableTelemetry() {
+  const config = loadTelemetryConfig();
+  config.enabled = false;
+  saveTelemetryConfig(config);
+}
+function generateSessionId() {
+  return `cli_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+}
+function trackEvent(type, metadata) {
+  const config = loadTelemetryConfig();
+  if (!config.enabled) return;
+  const event = {
+    type,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    machineId: config.machineId,
+    sessionId: generateSessionId(),
+    cliVersion: "1.0.0",
+    metadata
+  };
+  sendEvent(event).catch(() => {
+  });
+}
+function trackTiming(event, durationMs, metadata) {
+  trackEvent(event, { ...metadata, durationMs });
+}
+async function sendEvent(event) {
+  if (!TELEMETRY_ENDPOINT) {
+    if (process.env.DEBUG === "true") {
+      console.log("[Telemetry]", event);
+    }
+    return;
+  }
+  try {
+    await fetch(TELEMETRY_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event)
+    });
+  } catch {
+  }
+}
+var FunnelStage = {
+  CLI_INSTALL: "cli_install",
+  INIT_STARTED: "init_started",
+  INIT_COMPLETED: "init_completed",
+  SANDBOX_STARTED: "sandbox_started",
+  FIRST_CHECKOUT: "first_checkout",
+  FIRST_SUBSCRIPTION: "first_subscription"
+};
+function trackFunnel(stage, metadata) {
+  trackEvent(`funnel_${stage}`, metadata);
+}
+
+// src/utils/feedback.ts
+import chalk4 from "chalk";
+import inquirer from "inquirer";
+async function promptForFeedback(eventType, metadata) {
+  console.log();
+  console.log(chalk4.blue.bold("\u{1F4E3} Quick Feedback"));
+  console.log(chalk4.gray("Your feedback helps us improve."));
+  console.log();
+  try {
+    const { wasEasy } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "wasEasy",
+        message: "Was this easy to set up?",
+        default: true
+      }
+    ]);
+    let feedbackText;
+    if (!wasEasy) {
+      const { feedback } = await inquirer.prompt([
+        {
+          type: "input",
+          name: "feedback",
+          message: "What was difficult? (optional, 1 sentence)"
+        }
+      ]);
+      feedbackText = feedback;
+    }
+    trackEvent("feedback_collected", {
+      eventType,
+      rating: wasEasy ? "positive" : "negative",
+      feedback: feedbackText,
+      ...metadata
+    });
+    console.log();
+    if (wasEasy) {
+      console.log(chalk4.green("\u2728 Thanks! Glad it went smoothly."));
+    } else {
+      console.log(chalk4.yellow("\u{1F4DD} Thanks for the feedback \u2014 we'll use it to improve."));
+    }
+    console.log();
+  } catch {
+  }
+}
+
+// src/commands/init.ts
+async function initCommand(options) {
+  console.log(chalk5.blue.bold("\n\u26A1 @drew/billing init\n"));
+  trackFunnel(FunnelStage.INIT_STARTED, { template: options.template });
+  const initStartTime = Date.now();
+  const cwd = process.cwd();
+  const isEmptyDir = await isDirectoryEmpty(cwd);
+  const hasPackageJson = await fs6.pathExists(path6.join(cwd, "package.json"));
+  console.log(chalk5.gray(`Debug: cwd=${cwd}, isEmptyDir=${isEmptyDir}, hasPackageJson=${hasPackageJson}`));
+  let pkgManager = "npm";
+  let projectName = path6.basename(cwd);
+  let detectedFramework = { name: "nextjs" };
+  let projectScaffolded = false;
+  if (isEmptyDir || !hasPackageJson) {
+    console.log(chalk5.yellow("\u{1F4C1} No existing project detected."));
+    let shouldScaffold = options.yes;
+    if (!options.yes) {
+      const answer = await inquirer2.prompt([
+        {
+          type: "confirm",
+          name: "shouldScaffold",
+          message: "Create a new Next.js project here?",
+          default: true
+        }
+      ]);
+      shouldScaffold = answer.shouldScaffold;
+    }
+    if (!shouldScaffold) {
+      console.log(chalk5.gray("\nAborted. Please run this in an existing Next.js project directory.\n"));
+      process.exit(0);
+    }
+    const scaffoldResult = await scaffoldNextJsProject(cwd, options.yes);
+    if (!scaffoldResult.success) {
+      console.log(chalk5.red("\n\u274C Failed to scaffold Next.js project."));
+      console.log(chalk5.gray("Please try manually: npx create-next-app@latest .\n"));
+      process.exit(1);
+    }
+    pkgManager = scaffoldResult.pkgManager;
+    projectName = scaffoldResult.projectName;
+    projectScaffolded = true;
+    detectedFramework = { name: "nextjs", version: "latest" };
+    console.log(chalk5.green(`
+\u2705 Created Next.js project: ${projectName}
+`));
+    const hasPackageJsonAfter = await fs6.pathExists(path6.join(cwd, "package.json"));
+    if (!hasPackageJsonAfter) {
+      console.log(chalk5.red("\n\u274C Scaffolded project missing package.json"));
+      process.exit(1);
+    }
+  } else {
+    const spinner = ora2("Detecting framework...").start();
+    const framework = await detectFramework();
+    detectedFramework = { name: framework.name, version: framework.version };
+    if (framework.name !== "nextjs") {
+      spinner.warn(`Detected: ${framework.name} (limited support)`);
+      console.log(chalk5.yellow("\n\u26A0\uFE0F  Currently only Next.js is fully supported."));
+      console.log(chalk5.gray("Other frameworks coming soon: React, Vue, Svelte, Express\n"));
+      const { continueAnyway } = await inquirer2.prompt([
+        {
+          type: "confirm",
+          name: "continueAnyway",
+          message: "Continue with manual setup?",
+          default: false
+        }
+      ]);
+      if (!continueAnyway) {
+        console.log(chalk5.gray("\nAborted.\n"));
+        process.exit(0);
+      }
+    } else {
+      spinner.succeed(`Detected: ${chalk5.green("Next.js")} ${framework.version || ""}`);
+    }
+    pkgManager = await detectPackageManager();
+  }
+  console.log(chalk5.gray(`Using package manager: ${pkgManager}
+`));
+  let config;
+  if (options.yes) {
+    config = {
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
+      stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+      databaseUrl: process.env.DATABASE_URL || "",
+      template: options.template || "saas",
+      createProducts: !options.skipStripe
+    };
+  } else {
+    const answers = await inquirer2.prompt([
+      {
+        type: "input",
+        name: "stripeSecretKey",
+        message: "Stripe Secret Key (sk_test_...):",
+        default: process.env.STRIPE_SECRET_KEY,
+        validate: (input) => input.startsWith("sk_test_") || input.startsWith("sk_live_") ? true : "Must start with sk_test_ or sk_live_"
+      },
+      {
+        type: "input",
+        name: "stripePublishableKey",
+        message: "Stripe Publishable Key (pk_test_...):",
+        default: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+        validate: (input) => input.startsWith("pk_test_") || input.startsWith("pk_live_") ? true : "Must start with pk_test_ or pk_live_"
+      },
+      {
+        type: "input",
+        name: "databaseUrl",
+        message: "Database URL (postgresql://...):",
+        default: process.env.DATABASE_URL,
+        validate: (input) => {
+          if (!input || input.trim() === "") {
+            return "Database URL is required (use your Neon or local Postgres URL)";
+          }
+          if (!input.startsWith("postgresql://") && !input.startsWith("postgres://")) {
+            return "Must start with postgresql:// or postgres://";
+          }
+          return true;
+        }
+      },
+      {
+        type: "list",
+        name: "template",
+        message: "Choose your template:",
+        choices: [
+          { name: "SaaS Starter (pricing page + auth + dashboard)", value: "saas" },
+          { name: "API Billing (usage-based pricing)", value: "api" },
+          { name: "Simple Usage (metered billing)", value: "usage" },
+          { name: "Minimal (just the SDK)", value: "minimal" }
+        ],
+        default: options.template || "saas"
+      },
+      {
+        type: "confirm",
+        name: "createProducts",
+        message: "Create Stripe products automatically?",
+        default: !options.skipStripe
+      }
+    ]);
+    config = { ...answers, webhookSecret: "" };
+  }
+  console.log(chalk5.blue.bold("\n\u{1F4E6} Setting up @drew/billing...\n"));
+  const results = {
+    projectScaffolded,
+    dependencies: false,
+    stripeProducts: false,
+    database: false,
+    templates: false,
+    env: false
+  };
+  const errors = [];
+  const depsSpinner = ora2("Installing core dependencies...").start();
+  try {
+    await installWithRetry(["stripe"], pkgManager, depsSpinner, false, 2, cwd);
+    depsSpinner.succeed("Core dependencies installed");
+    results.dependencies = true;
+  } catch (error) {
+    depsSpinner.fail("Failed to install core dependencies");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Dependencies: ${errorMsg}`);
+    console.log(chalk5.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} stripe`));
+  }
+  const dbDepsSpinner = ora2("Installing database dependencies...").start();
+  try {
+    await installWithRetry(
+      ["drizzle-orm", "@neondatabase/serverless", "drizzle-kit"],
+      pkgManager,
+      dbDepsSpinner,
+      false,
+      2,
+      cwd
+    );
+    dbDepsSpinner.succeed("Database dependencies installed");
+  } catch (error) {
+    dbDepsSpinner.fail("Failed to install database dependencies");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`DB Dependencies: ${errorMsg}`);
+    console.log(chalk5.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} drizzle-orm @neondatabase/serverless drizzle-kit`));
+  }
+  const devDepsSpinner = ora2("Installing dev dependencies...").start();
+  try {
+    await installWithRetry(["@types/node", "typescript"], pkgManager, devDepsSpinner, true, 2, cwd);
+    devDepsSpinner.succeed("Dev dependencies installed");
+  } catch {
+    devDepsSpinner.warn("Some dev dependencies may need manual installation");
+  }
+  console.log(chalk5.gray("\nNote: @drew/billing-sdk will be available when published. For now, the CLI provides all needed components.\n"));
+  let products = [];
+  if (config.createProducts && config.stripeSecretKey) {
+    const productSpinner = ora2("Creating Stripe products...").start();
+    try {
+      if (!config.stripeSecretKey.startsWith("sk_test_") && !config.stripeSecretKey.startsWith("sk_live_")) {
+        throw new Error("Invalid Stripe secret key format");
+      }
+      products = await createStripeProducts(config.stripeSecretKey);
+      productSpinner.succeed(`Created ${products.length} Stripe products`);
+      results.stripeProducts = true;
+    } catch (error) {
+      productSpinner.fail("Failed to create Stripe products");
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`Stripe products: ${errorMsg}`);
+      console.log(chalk5.gray("You can create them manually in the Stripe Dashboard"));
+      console.log(chalk5.gray("Then update the price IDs in your code"));
+      products = [
+        { id: "prod_fallback", name: "Pro", priceId: "price_fallback_pro" },
+        { id: "prod_fallback_2", name: "Enterprise", priceId: "price_fallback_enterprise" }
+      ];
+    }
+  }
+  const dbSpinner = ora2("Setting up database...").start();
+  try {
+    await ensureDrizzleConfig(cwd);
+    await setupDatabaseWithFallback(cwd, pkgManager, dbSpinner);
+    dbSpinner.succeed("Database configured");
+    results.database = true;
+  } catch (error) {
+    dbSpinner.fail("Database setup failed");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Database: ${errorMsg}`);
+    console.log(chalk5.gray("You can set up the database later by running:"));
+    console.log(chalk5.gray("  npx drizzle-kit push"));
+    console.log(chalk5.gray("\nMake sure to set DATABASE_URL in your .env.local file"));
+  }
+  const templateSpinner = ora2(`Installing ${config.template} template...`).start();
+  try {
+    await fs6.ensureDir(path6.join(cwd, "app"));
+    await fs6.ensureDir(path6.join(cwd, "components"));
+    await installTemplates(config.template, products, cwd);
+    templateSpinner.succeed(`Template installed`);
+    results.templates = true;
+  } catch (error) {
+    templateSpinner.fail("Template installation failed");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Templates: ${errorMsg}`);
+    console.log(chalk5.gray("Try running:"));
+    console.log(chalk5.gray("  npx @drew/billing add all"));
+  }
+  const envSpinner = ora2("Updating environment variables...").start();
+  try {
+    const envVars = {
+      STRIPE_SECRET_KEY: config.stripeSecretKey,
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: config.stripePublishableKey,
+      STRIPE_WEBHOOK_SECRET: config.webhookSecret || "whsec_... (run: stripe listen --forward-to localhost:3000/api/webhooks/stripe)",
+      DATABASE_URL: config.databaseUrl || "postgresql://username:password@localhost:5432/database_name",
+      BILLING_API_URL: "http://localhost:3000"
+    };
+    await updateEnvFile(envVars);
+    envSpinner.succeed("Environment variables configured");
+    results.env = true;
+  } catch (error) {
+    envSpinner.fail("Failed to update .env");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`Environment: ${errorMsg}`);
+  }
+  const initDuration = Date.now() - initStartTime;
+  trackFunnel(FunnelStage.INIT_COMPLETED, {
+    template: config.template,
+    durationMs: initDuration,
+    framework: detectedFramework.name,
+    success: Object.values(results).every((r) => r)
+  });
+  trackTiming("init_complete", initDuration);
+  console.log(chalk5.green.bold("\n\u2705 Setup complete!\n"));
+  if (errors.length > 0) {
+    console.log(chalk5.yellow("\u26A0\uFE0F  Some steps failed:"));
+    errors.forEach((err) => console.log(chalk5.gray(`  \u2022 ${err}`)));
+    console.log();
+  }
+  console.log(chalk5.white("Next steps:\n"));
+  if (results.projectScaffolded) {
+    console.log(chalk5.gray("1."), "Navigate to your project:", chalk5.cyan(`cd ${projectName}`));
+    console.log(chalk5.gray("2."), "Start your dev server:", chalk5.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
+    console.log(chalk5.gray("3."), "Start Stripe webhook listener:", chalk5.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
+  } else {
+    console.log(chalk5.gray("1."), "Start your dev server:", chalk5.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
+    console.log(chalk5.gray("2."), "Start Stripe webhook listener:", chalk5.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
+  }
+  if (results.templates) {
+    const stepNum = results.projectScaffolded ? "4" : "3";
+    console.log(chalk5.gray(`${stepNum}.`), "Visit", chalk5.cyan("http://localhost:3000/pricing"));
+  }
+  if (!results.database) {
+    console.log(chalk5.gray("\n\u26A0\uFE0F  Database not configured. Add DATABASE_URL to .env.local and run:"));
+    console.log(chalk5.gray("   npx drizzle-kit push"));
+  }
+  console.log();
+  console.log(chalk5.gray("Documentation:"), chalk5.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
+  console.log(chalk5.gray("Diagnostics:"), chalk5.cyan("npx drew-billing-cli doctor"));
+  console.log(chalk5.gray("Support:"), chalk5.underline("https://github.com/drewsephski/monetize/issues"));
+  console.log();
+  if (products.length > 0 && results.stripeProducts) {
+    console.log(chalk5.gray("Created Stripe products:"));
+    products.forEach((p) => {
+      console.log(chalk5.gray(`  \u2022 ${p.name}: ${p.priceId}`));
+    });
+    console.log();
+  } else if (products.length > 0) {
+    console.log(chalk5.gray("Placeholder product IDs (update these in your code):"));
+    products.forEach((p) => {
+      console.log(chalk5.gray(`  \u2022 ${p.name}: ${p.priceId}`));
+    });
+    console.log();
+  }
+  console.log(chalk5.blue("\u{1F4CA} Help improve @drew/billing"));
+  console.log(chalk5.gray("Enable anonymous telemetry to help us fix bugs faster."));
+  console.log(chalk5.gray("Run: npx @drew/billing telemetry --enable\n"));
+  await promptForFeedback("init_completed", {
+    template: config.template,
+    framework: detectedFramework.name,
+    durationMs: initDuration,
+    results
+  });
+}
+async function isDirectoryEmpty(dir) {
+  try {
+    const files = await fs6.readdir(dir);
+    const relevantFiles = files.filter((f) => !f.startsWith(".") && f !== "node_modules");
+    return relevantFiles.length === 0;
+  } catch {
+    return true;
+  }
+}
+async function scaffoldNextJsProject(cwd, yesMode = false) {
+  const projectName = path6.basename(cwd);
+  let pkgManager = "npm";
+  try {
+    await execa2("bun", ["--version"], { stdio: "pipe" });
+    pkgManager = "bun";
+  } catch {
+    try {
+      await execa2("pnpm", ["--version"], { stdio: "pipe" });
+      pkgManager = "pnpm";
+    } catch {
+      try {
+        await execa2("yarn", ["--version"], { stdio: "pipe" });
+        pkgManager = "yarn";
+      } catch {
+      }
+    }
+  }
+  const spinner = ora2(`Creating Next.js project with ${pkgManager}...`).start();
+  try {
+    const createNextAppCmd = pkgManager === "npm" ? "npx" : pkgManager;
+    const args = [
+      ...pkgManager === "npm" ? ["create-next-app@latest"] : ["create", "next-app"],
+      ".",
+      // Use current directory, not a subdirectory
+      "--typescript",
+      "--tailwind",
+      "--eslint",
+      "--app",
+      "--src-dir=false",
+      "--import-alias",
+      "@/*",
+      ...yesMode ? ["--yes"] : []
+    ];
+    await execa2(createNextAppCmd, args, {
+      cwd,
+      stdio: "pipe",
+      timeout: 3e5
+      // 5 minute timeout
+    });
+    spinner.succeed("Next.js project created");
+    return { success: true, pkgManager, projectName };
+  } catch {
+    spinner.fail("Failed to create Next.js project");
+    if (pkgManager !== "npm") {
+      spinner.text = "Retrying with npm...";
+      spinner.start();
+      try {
+        await execa2("npx", [
+          "create-next-app@latest",
+          ".",
+          // Use current directory
+          "--typescript",
+          "--tailwind",
+          "--eslint",
+          "--app",
+          "--src-dir=false",
+          "--import-alias",
+          "@/*",
+          ...yesMode ? ["--yes"] : []
+        ], {
+          cwd,
+          stdio: "pipe",
+          timeout: 3e5
+        });
+        spinner.succeed("Next.js project created with npm");
+        return { success: true, pkgManager: "npm", projectName };
+      } catch {
+        spinner.fail("All attempts failed");
+        return { success: false, pkgManager: "npm", projectName };
+      }
+    }
+    return { success: false, pkgManager, projectName };
+  }
+}
+async function installWithRetry(packages, pkgManager, spinner, dev = false, maxRetries = 2, projectCwd) {
+  const installCmd = pkgManager === "npm" ? "install" : "add";
+  const devFlag = dev ? pkgManager === "npm" ? "--save-dev" : "-D" : "";
+  const args = [installCmd, ...packages, ...devFlag ? [devFlag] : []];
+  const cwd = projectCwd || process.cwd();
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      spinner.text = `Installing dependencies (attempt ${attempt}/${maxRetries})...`;
+      await execa2(pkgManager, args, {
+        cwd,
+        stdio: "pipe",
+        timeout: 12e4
+        // 2 minute timeout
+      });
+      return;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(chalk5.gray(`  Install attempt ${attempt} failed: ${errorMsg.substring(0, 100)}`));
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2e3));
+    }
+  }
+}
+async function ensureDrizzleConfig(cwd) {
+  const drizzleConfigPath = path6.join(cwd, "drizzle.config.ts");
+  if (await fs6.pathExists(drizzleConfigPath)) {
+    return;
+  }
+  if (await fs6.pathExists(path6.join(cwd, "drizzle.config.js"))) {
+    return;
+  }
+  const configContent = `import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   schema: "./drizzle/schema.ts",
@@ -1024,7 +3065,11 @@ export default defineConfig({
     url: process.env.DATABASE_URL!,
   },
 });
-`);let t=C.join(e,"drizzle");await N.ensureDir(t),await N.writeFile(C.join(t,"schema.ts"),`import { pgTable, serial, varchar, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+`;
+  await fs6.writeFile(drizzleConfigPath, configContent);
+  const schemaDir = path6.join(cwd, "drizzle");
+  await fs6.ensureDir(schemaDir);
+  const schemaContent = `import { pgTable, serial, varchar, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
@@ -1047,49 +3092,722 @@ export const usageRecords = pgTable("usage_records", {
   recordedAt: timestamp("recorded_at").defaultNow(),
   metadata: jsonb("metadata"),
 });
-`)}async function at(e,r,n){try{n.text="Running database migrations...",await U("npx",["drizzle-kit","push","--force"],{cwd:e,stdio:"pipe",timeout:6e4,env:{...process.env,SKIP_ENV_VALIDATION:"true"}})}catch(t){let s=t instanceof Error?t.message:String(t);throw s.includes("DATABASE_URL")||s.includes("database")?new Error("DATABASE_URL not configured. Please add it to .env.local"):t}}import b from"chalk";import K from"ora";import O from"fs-extra";import F from"path";async function Ee(){console.log(b.blue.bold(`
-\u{1F50D} @drew/billing verify
-`)),console.log(b.gray(`Checking your billing setup...
-`));let e=[],r=K("Checking environment variables...").start();try{let c=F.join(process.cwd(),".env.local");if(!await O.pathExists(c))e.push({name:"Environment File",status:"fail",message:".env.local not found"}),r.fail();else{let u=await O.readFile(c,"utf-8"),f=["STRIPE_SECRET_KEY","NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"].filter(x=>!u.includes(x));f.length>0?(e.push({name:"Environment Variables",status:"fail",message:`Missing: ${f.join(", ")}`}),r.fail()):(e.push({name:"Environment Variables",status:"pass",message:"All required variables present"}),r.succeed())}}catch{e.push({name:"Environment Variables",status:"fail",message:"Could not read .env file"}),r.fail()}let n=K("Checking Stripe connection...").start();try{let c=(await import("stripe")).default,u=await new c(process.env.STRIPE_SECRET_KEY,{apiVersion:"2023-10-16"}).accounts.retrieve();e.push({name:"Stripe API",status:"pass",message:`Connected to ${u.settings?.dashboard?.display_name||"Stripe account"}`}),n.succeed()}catch{e.push({name:"Stripe API",status:"fail",message:"Could not connect to Stripe API"}),n.fail()}let t=K("Checking database...").start();try{let c=await O.pathExists(F.join(process.cwd(),"drizzle.config.ts")),p=await O.pathExists(F.join(process.cwd(),"drizzle/schema.ts"));c&&p?(e.push({name:"Database Setup",status:"pass",message:"Drizzle ORM configured"}),t.succeed()):(e.push({name:"Database Setup",status:"warn",message:"Database configuration not detected"}),t.warn())}catch{e.push({name:"Database Setup",status:"warn",message:"Could not verify database setup"}),t.warn()}let s=K("Checking API routes...").start();try{let c=["api/checkout/route.ts","api/webhooks/stripe/route.ts","api/entitlements/[userId]/route.ts"],p=F.join(process.cwd(),"app"),u=[];for(let y of c){let f=F.join(p,y);await O.pathExists(f)||u.push(y)}u.length>0?(e.push({name:"API Routes",status:"warn",message:`Missing routes: ${u.length}`}),s.warn()):(e.push({name:"API Routes",status:"pass",message:"All required routes present"}),s.succeed())}catch{e.push({name:"API Routes",status:"warn",message:"Could not verify API routes"}),s.warn()}let o=K("Checking SDK...").start();try{let c=await O.readJson(F.join(process.cwd(),"package.json"));c.dependencies?.stripe||c.devDependencies?.stripe?(e.push({name:"Stripe SDK",status:"pass",message:"stripe SDK installed"}),o.succeed()):(e.push({name:"Stripe SDK",status:"fail",message:"Stripe SDK not found in dependencies"}),o.fail())}catch{e.push({name:"SDK Installation",status:"fail",message:"Could not check package.json"}),o.fail()}console.log(b.blue.bold(`
-\u{1F4CA} Summary
-`));let g=e.filter(c=>c.status==="pass").length,h=e.filter(c=>c.status==="fail").length;e.forEach(c=>{let p=c.status==="pass"?b.green("\u2713"):c.status==="fail"?b.red("\u2717"):b.yellow("\u26A0"),u=c.status==="pass"?b.green:c.status==="fail"?b.red:b.yellow;console.log(`${p} ${u(c.name)}`),console.log(b.gray(`  ${c.message}`))}),console.log(),h===0?(console.log(b.green.bold("\u2705 All checks passed!")),console.log(b.gray("Your billing setup looks good."))):h>0&&g>0?(console.log(b.yellow.bold("\u26A0\uFE0F  Some checks failed")),console.log(b.gray("Review the issues above to complete your setup."))):(console.log(b.red.bold("\u274C Setup incomplete")),console.log(b.gray("Run: npx @drew/billing init"))),console.log(),console.log(b.gray("Next steps:")),console.log(b.gray("  \u2022 Start dev server: npm run dev")),console.log(b.gray("  \u2022 Start webhook listener: stripe listen --forward-to localhost:3000/api/webhooks/stripe")),console.log(b.gray("  \u2022 View docs: https://github.com/drewsephski/monetize/tree/main/packages/cli#readme")),console.log()}import v from"chalk";import ot from"ora";import _e from"fs-extra";import it from"path";async function Te(e){console.log(v.blue.bold(`
-\u{1F3D6}\uFE0F  @drew/billing sandbox
-`));let r=it.join(process.cwd(),".env.local"),n="";try{n=await _e.readFile(r,"utf-8")}catch{}let t;if(e.enable)t=!0;else if(e.disable)t=!1;else{let o=n.match(/BILLING_SANDBOX_MODE=(true|false)/);t=!(o?o[1]==="true":!1)}let s=ot(t?"Enabling sandbox mode...":"Disabling sandbox mode...").start();try{n.includes("BILLING_SANDBOX_MODE=")?n=n.replace(/BILLING_SANDBOX_MODE=(true|false)/,`BILLING_SANDBOX_MODE=${t}`):n+=`
+`;
+  await fs6.writeFile(path6.join(schemaDir, "schema.ts"), schemaContent);
+}
+async function setupDatabaseWithFallback(cwd, _pkgManager, spinner) {
+  try {
+    spinner.text = "Running database migrations...";
+    await execa2("npx", ["drizzle-kit", "push", "--force"], {
+      cwd,
+      stdio: "pipe",
+      timeout: 6e4,
+      env: { ...process.env, SKIP_ENV_VALIDATION: "true" }
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    if (errorMsg.includes("DATABASE_URL") || errorMsg.includes("database")) {
+      throw new Error("DATABASE_URL not configured. Please add it to .env.local");
+    }
+    throw error;
+  }
+}
+
+// src/commands/verify.ts
+import chalk6 from "chalk";
+import ora3 from "ora";
+import fs7 from "fs-extra";
+import path7 from "path";
+async function verifyCommand() {
+  console.log(chalk6.blue.bold("\n\u{1F50D} @drew/billing verify\n"));
+  console.log(chalk6.gray("Checking your billing setup...\n"));
+  const results = [];
+  const envSpinner = ora3("Checking environment variables...").start();
+  try {
+    const envPath = path7.join(process.cwd(), ".env.local");
+    const envExists = await fs7.pathExists(envPath);
+    if (!envExists) {
+      results.push({
+        name: "Environment File",
+        status: "fail",
+        message: ".env.local not found"
+      });
+      envSpinner.fail();
+    } else {
+      const envContent = await fs7.readFile(envPath, "utf-8");
+      const requiredVars = [
+        "STRIPE_SECRET_KEY",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+      ];
+      const missing = requiredVars.filter((v) => !envContent.includes(v));
+      if (missing.length > 0) {
+        results.push({
+          name: "Environment Variables",
+          status: "fail",
+          message: `Missing: ${missing.join(", ")}`
+        });
+        envSpinner.fail();
+      } else {
+        results.push({
+          name: "Environment Variables",
+          status: "pass",
+          message: "All required variables present"
+        });
+        envSpinner.succeed();
+      }
+    }
+  } catch {
+    results.push({
+      name: "Environment Variables",
+      status: "fail",
+      message: "Could not read .env file"
+    });
+    envSpinner.fail();
+  }
+  const stripeSpinner = ora3("Checking Stripe connection...").start();
+  try {
+    const Stripe2 = (await import("stripe")).default;
+    const stripe = new Stripe2(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2023-10-16"
+    });
+    const account = await stripe.accounts.retrieve();
+    results.push({
+      name: "Stripe API",
+      status: "pass",
+      message: `Connected to ${account.settings?.dashboard?.display_name || "Stripe account"}`
+    });
+    stripeSpinner.succeed();
+  } catch {
+    results.push({
+      name: "Stripe API",
+      status: "fail",
+      message: "Could not connect to Stripe API"
+    });
+    stripeSpinner.fail();
+  }
+  const dbSpinner = ora3("Checking database...").start();
+  try {
+    const hasDrizzleConfig = await fs7.pathExists(
+      path7.join(process.cwd(), "drizzle.config.ts")
+    );
+    const hasSchema = await fs7.pathExists(
+      path7.join(process.cwd(), "drizzle/schema.ts")
+    );
+    if (hasDrizzleConfig && hasSchema) {
+      results.push({
+        name: "Database Setup",
+        status: "pass",
+        message: "Drizzle ORM configured"
+      });
+      dbSpinner.succeed();
+    } else {
+      results.push({
+        name: "Database Setup",
+        status: "warn",
+        message: "Database configuration not detected"
+      });
+      dbSpinner.warn();
+    }
+  } catch {
+    results.push({
+      name: "Database Setup",
+      status: "warn",
+      message: "Could not verify database setup"
+    });
+    dbSpinner.warn();
+  }
+  const apiSpinner = ora3("Checking API routes...").start();
+  try {
+    const requiredRoutes = [
+      "api/checkout/route.ts",
+      "api/webhooks/stripe/route.ts",
+      "api/entitlements/[userId]/route.ts"
+    ];
+    const appDir = path7.join(process.cwd(), "app");
+    const missingRoutes = [];
+    for (const route of requiredRoutes) {
+      const fullPath = path7.join(appDir, route);
+      if (!await fs7.pathExists(fullPath)) {
+        missingRoutes.push(route);
+      }
+    }
+    if (missingRoutes.length > 0) {
+      results.push({
+        name: "API Routes",
+        status: "warn",
+        message: `Missing routes: ${missingRoutes.length}`
+      });
+      apiSpinner.warn();
+    } else {
+      results.push({
+        name: "API Routes",
+        status: "pass",
+        message: "All required routes present"
+      });
+      apiSpinner.succeed();
+    }
+  } catch {
+    results.push({
+      name: "API Routes",
+      status: "warn",
+      message: "Could not verify API routes"
+    });
+    apiSpinner.warn();
+  }
+  const sdkSpinner = ora3("Checking SDK...").start();
+  try {
+    const packageJson = await fs7.readJson(path7.join(process.cwd(), "package.json"));
+    const hasStripe = packageJson.dependencies?.["stripe"] || packageJson.devDependencies?.["stripe"];
+    if (hasStripe) {
+      results.push({
+        name: "Stripe SDK",
+        status: "pass",
+        message: "stripe SDK installed"
+      });
+      sdkSpinner.succeed();
+    } else {
+      results.push({
+        name: "Stripe SDK",
+        status: "fail",
+        message: "Stripe SDK not found in dependencies"
+      });
+      sdkSpinner.fail();
+    }
+  } catch {
+    results.push({
+      name: "SDK Installation",
+      status: "fail",
+      message: "Could not check package.json"
+    });
+    sdkSpinner.fail();
+  }
+  console.log(chalk6.blue.bold("\n\u{1F4CA} Summary\n"));
+  const passed = results.filter((r) => r.status === "pass").length;
+  const failed = results.filter((r) => r.status === "fail").length;
+  results.forEach((result) => {
+    const icon = result.status === "pass" ? chalk6.green("\u2713") : result.status === "fail" ? chalk6.red("\u2717") : chalk6.yellow("\u26A0");
+    const color = result.status === "pass" ? chalk6.green : result.status === "fail" ? chalk6.red : chalk6.yellow;
+    console.log(`${icon} ${color(result.name)}`);
+    console.log(chalk6.gray(`  ${result.message}`));
+  });
+  console.log();
+  if (failed === 0) {
+    console.log(chalk6.green.bold("\u2705 All checks passed!"));
+    console.log(chalk6.gray("Your billing setup looks good."));
+  } else if (failed > 0 && passed > 0) {
+    console.log(chalk6.yellow.bold("\u26A0\uFE0F  Some checks failed"));
+    console.log(chalk6.gray("Review the issues above to complete your setup."));
+  } else {
+    console.log(chalk6.red.bold("\u274C Setup incomplete"));
+    console.log(chalk6.gray("Run: npx @drew/billing init"));
+  }
+  console.log();
+  console.log(chalk6.gray("Next steps:"));
+  console.log(chalk6.gray("  \u2022 Start dev server: npm run dev"));
+  console.log(chalk6.gray("  \u2022 Start webhook listener: stripe listen --forward-to localhost:3000/api/webhooks/stripe"));
+  console.log(chalk6.gray("  \u2022 View docs: https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
+  console.log();
+}
+
+// src/commands/sandbox.ts
+import chalk7 from "chalk";
+import ora4 from "ora";
+import fs8 from "fs-extra";
+import path8 from "path";
+async function sandboxCommand(options) {
+  console.log(chalk7.blue.bold("\n\u{1F3D6}\uFE0F  @drew/billing sandbox\n"));
+  const envPath = path8.join(process.cwd(), ".env.local");
+  let envContent = "";
+  try {
+    envContent = await fs8.readFile(envPath, "utf-8");
+  } catch (error) {
+  }
+  let newSandboxState;
+  if (options.enable) {
+    newSandboxState = true;
+  } else if (options.disable) {
+    newSandboxState = false;
+  } else {
+    const currentMatch = envContent.match(/BILLING_SANDBOX_MODE=(true|false)/);
+    const currentState = currentMatch ? currentMatch[1] === "true" : false;
+    newSandboxState = !currentState;
+  }
+  const spinner = ora4(
+    newSandboxState ? "Enabling sandbox mode..." : "Disabling sandbox mode..."
+  ).start();
+  try {
+    if (envContent.includes("BILLING_SANDBOX_MODE=")) {
+      envContent = envContent.replace(
+        /BILLING_SANDBOX_MODE=(true|false)/,
+        `BILLING_SANDBOX_MODE=${newSandboxState}`
+      );
+    } else {
+      envContent += `
 # Sandbox mode - no real charges
-BILLING_SANDBOX_MODE=${t}
-`,await _e.writeFile(r,n),s.succeed()}catch(o){s.fail("Failed to update sandbox mode"),console.log(o),process.exit(1)}t?(console.log(v.green.bold(`
-\u2705 Sandbox mode ENABLED
-`)),console.log(v.gray("What this means:")),console.log(v.gray("  \u2022 No real charges will be processed")),console.log(v.gray("  \u2022 Stripe test mode API keys used")),console.log(v.gray("  \u2022 Webhooks simulated locally")),console.log(v.gray("  \u2022 Usage tracked but not billed")),console.log(),console.log(v.yellow("Perfect for development and testing!"))):(console.log(v.yellow.bold(`
-\u26A0\uFE0F  Sandbox mode DISABLED
-`)),console.log(v.gray("What this means:")),console.log(v.gray("  \u2022 Real charges will be processed")),console.log(v.gray("  \u2022 Stripe live mode API keys required")),console.log(v.gray("  \u2022 Production webhooks active")),console.log(),console.log(v.red("Make sure you have live Stripe keys configured!"))),console.log(),console.log(v.gray("Switch back anytime:")),console.log(v.cyan("  npx @drew/billing sandbox")),console.log()}import i from"chalk";import $ from"fs-extra";import j from"path";async function De(){console.log(i.blue.bold(`
-\u{1F464} @drew/billing whoami
-`));try{let f=await $.readJson(j.join(process.cwd(),"package.json"));console.log(i.gray("Project:"),i.white(f.name||"Unknown")),console.log(i.gray("Version:"),i.white(f.version||"Unknown"))}catch{console.log(i.gray("Project:"),i.yellow("Could not read package.json"))}let e=j.join(process.cwd(),".env.local"),r={};try{(await $.readFile(e,"utf-8")).split(`
-`).forEach(x=>{let I=x.match(/^([A-Z_]+)=(.+)$/);I&&(r[I[1]]=I[2].replace(/^["']/,"").replace(/["']$/,""))})}catch{}console.log(),console.log(i.gray("Environment:"));let n=r.STRIPE_SECRET_KEY||"",t=n.startsWith("sk_test_"),s=n.startsWith("sk_live_");t?console.log(i.gray("  Stripe:"),i.yellow("TEST MODE")):s?console.log(i.gray("  Stripe:"),i.green("LIVE MODE \u26A0\uFE0F")):console.log(i.gray("  Stripe:"),i.red("Not configured"));let o=r.BILLING_SANDBOX_MODE==="true";console.log(i.gray("  Sandbox:"),o?i.green("Enabled"):i.gray("Disabled"));let g=r.NEXT_PUBLIC_BILLING_API_URL||r.BILLING_API_URL;console.log(i.gray("  API URL:"),g||i.red("Not set"));try{let f=await $.readJson(j.join(process.cwd(),"package.json")),x=f.dependencies?.["@drew/billing-sdk"]||f.devDependencies?.["@drew/billing-sdk"];x?console.log(i.gray("  SDK:"),x):console.log(i.gray("  SDK:"),i.red("Not installed"))}catch{}console.log();let h=j.join(process.cwd(),"components/billing");try{let x=(await $.readdir(h)).filter(I=>I.endsWith(".tsx"));x.length>0?(console.log(i.gray("Installed Components:")),x.forEach(I=>{console.log(i.gray("  \u2022"),I.replace(".tsx",""))})):(console.log(i.gray("Components:"),i.yellow("None installed")),console.log(i.gray("  Install with: npx @drew/billing add <component>")))}catch{console.log(i.gray("Components:"),i.yellow("None installed"))}console.log();let c=await $.pathExists(j.join(process.cwd(),"drizzle.config.ts"));console.log(i.gray("Database:"),c?i.green("Configured"):i.yellow("Not configured"));let p=j.join(process.cwd(),"app/api"),u=await $.pathExists(j.join(p,"checkout/route.ts")),y=await $.pathExists(j.join(p,"webhooks/stripe/route.ts"));console.log(i.gray("API Routes:")),console.log(i.gray("  /api/checkout"),u?i.green("\u2713"):i.red("\u2717")),console.log(i.gray("  /api/webhooks/stripe"),y?i.green("\u2713"):i.red("\u2717")),console.log(),console.log(i.gray("Commands:")),console.log(i.gray("  init       Initialize billing")),console.log(i.gray("  add        Add UI components")),console.log(i.gray("  verify     Verify setup")),console.log(i.gray("  sandbox    Toggle sandbox mode")),console.log()}import m from"chalk";async function je(e){console.log(m.blue.bold(`
-\u{1F4CA} Telemetry Settings
-`));let r=z();if(e.enable){ke(),console.log(m.green("\u2705 Anonymous telemetry enabled")),console.log(m.gray(`
-We collect:`)),console.log(m.gray("  \u2022 Command usage (init, add, verify, etc.)")),console.log(m.gray("  \u2022 Performance metrics (timing)")),console.log(m.gray("  \u2022 Error reports (no stack traces with PII)")),console.log(m.gray(`
-We NEVER collect:`)),console.log(m.gray("  \u2022 Personal information")),console.log(m.gray("  \u2022 Stripe keys or API credentials")),console.log(m.gray("  \u2022 Code or project details")),console.log(m.gray("  \u2022 IP addresses")),M("telemetry_enabled");return}if(e.disable){Se(),console.log(m.yellow("\u274C Anonymous telemetry disabled")),console.log(m.gray("You can re-enable anytime with: npx @drew/billing telemetry --enable"));return}console.log(m.white("Current status:")),console.log(`  Enabled: ${r.enabled?m.green("Yes"):m.red("No")}`),r.machineId&&console.log(`  Machine ID: ${m.gray(r.machineId)}`),r.optedInAt&&console.log(`  Decision date: ${m.gray(r.optedInAt)}`),console.log(m.gray(`
-Usage:`)),console.log(m.gray("  npx @drew/billing telemetry --enable   # Enable telemetry")),console.log(m.gray("  npx @drew/billing telemetry --disable  # Disable telemetry")),console.log(m.gray(`  npx @drew/billing telemetry            # Show status
-`)),r.optedInAt||(console.log(m.blue("\u{1F4A1} Why enable telemetry?")),console.log(m.gray("Anonymous data helps us improve the CLI and catch bugs faster.")),console.log(m.gray(`No personal information is ever collected.
-`)))}import w from"chalk";import{readFileSync as W,existsSync as B}from"fs";import{join as R}from"path";import{execa as lt}from"execa";async function Re(){console.log(w.blue.bold(`
-\u{1F50D} @drew/billing doctor
-`)),console.log(w.gray(`Running diagnostics...
-`));let e=[];e.push(await ct()),e.push(await pt()),e.push(await dt()),e.push(await ut()),e.push(await gt()),e.push(await mt()),e.push(await ft()),ht(e)}async function ct(){let e=R(process.cwd(),".env.local"),r=R(process.cwd(),".env.example"),n="";B(e)?n=W(e,"utf-8"):B(R(process.cwd(),".env"))&&(n=W(R(process.cwd(),".env"),"utf-8"));let t=["STRIPE_SECRET_KEY","NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY","STRIPE_WEBHOOK_SECRET"],s=t.filter(g=>!n.includes(g));if(s.length===0)return{name:"Environment Variables",status:"pass",message:"All required variables configured"};let o=B(r);return{name:"Environment Variables",status:"fail",message:`Missing: ${s.join(", ")}`,fix:o?"cp .env.example .env.local && edit with your Stripe keys":`Create .env.local with:
-${t.map(g=>`${g}=...`).join(`
-`)}`}}async function pt(){try{let e=new AbortController,r=setTimeout(()=>e.abort(),2e3),n=await fetch("http://localhost:3000/api/health",{signal:e.signal}).catch(()=>null);return clearTimeout(r),n?.ok?{name:"API Connectivity",status:"pass",message:"Billing API responding at localhost:3000"}:{name:"API Connectivity",status:"warn",message:"Dev server not running or API not accessible",fix:"Start dev server: npm run dev"}}catch{return{name:"API Connectivity",status:"warn",message:"Could not connect to localhost:3000",fix:"Start dev server: npm run dev"}}}async function dt(){let e=R(process.cwd(),".env.local"),r="";if(B(e)){let t=W(e,"utf-8").match(/STRIPE_WEBHOOK_SECRET=(.+)/);t&&(r=t[1].trim())}return!r||r==="whsec_..."?{name:"Webhook Configuration",status:"fail",message:"Webhook secret not configured",fix:`1. Run: stripe listen --forward-to http://localhost:3000/api/stripe/webhook
-2. Copy webhook secret to .env.local`}:r.startsWith("whsec_")?{name:"Webhook Configuration",status:"pass",message:"Webhook secret configured"}:{name:"Webhook Configuration",status:"warn",message:"Webhook secret format looks unusual",fix:"Verify STRIPE_WEBHOOK_SECRET starts with 'whsec_'"}}async function ut(){try{if(!B(R(process.cwd(),"drizzle.config.ts")))return{name:"Database Connection",status:"fail",message:"No Drizzle config found",fix:"Run: npx @drew/billing init to set up database"};try{return await lt("npx",["drizzle-kit","check"],{cwd:process.cwd(),timeout:1e4,reject:!1}),{name:"Database Connection",status:"pass",message:"Database configuration found"}}catch{return{name:"Database Connection",status:"warn",message:"Database config exists but connection not verified",fix:"Run: npx drizzle-kit push to sync schema"}}}catch{return{name:"Database Connection",status:"warn",message:"Could not verify database connection"}}}async function gt(){let e=R(process.cwd(),".env.local"),r="";if(B(e)){let t=W(e,"utf-8").match(/STRIPE_SECRET_KEY=(.+)/);t&&(r=t[1].trim())}return r?r.startsWith("sk_test_")?{name:"Stripe Configuration",status:"pass",message:"Test mode Stripe key configured"}:r.startsWith("sk_live_")?{name:"Stripe Configuration",status:"warn",message:"\u26A0\uFE0F Live Stripe key detected",fix:"Use test keys for development: https://dashboard.stripe.com/test/apikeys"}:{name:"Stripe Configuration",status:"fail",message:"Invalid Stripe key format",fix:"Key should start with sk_test_ or sk_live_"}:{name:"Stripe Configuration",status:"fail",message:"STRIPE_SECRET_KEY not found",fix:"Add STRIPE_SECRET_KEY=sk_test_... to .env.local"}}async function mt(){let e=R(process.cwd(),"package.json");if(!B(e))return{name:"Dependencies",status:"fail",message:"No package.json found",fix:"Run: npm init"};try{let r=JSON.parse(W(e,"utf-8")),n={...r.dependencies,...r.devDependencies},s=["stripe","drizzle-orm"].filter(o=>!n[o]);return s.length===0?{name:"Dependencies",status:"pass",message:"All required packages installed"}:{name:"Dependencies",status:"fail",message:`Missing: ${s.join(", ")}`,fix:`npm install ${s.join(" ")}`}}catch{return{name:"Dependencies",status:"warn",message:"Could not parse package.json"}}}async function ft(){let e=await V();return e.name==="nextjs"?{name:"Framework Support",status:"pass",message:`Next.js ${e.version||""} detected`}:{name:"Framework Support",status:"warn",message:`${e.name} detected (limited support)`,fix:"Next.js is fully supported. Other frameworks have basic support."}}function ht(e){let r=e.filter(s=>s.status==="pass").length,n=e.filter(s=>s.status==="fail").length,t=e.filter(s=>s.status==="warn").length;console.log(w.white.bold(`Results:
-`));for(let s of e){let o=s.status==="pass"?w.green("\u2713"):s.status==="fail"?w.red("\u2717"):w.yellow("\u26A0");console.log(`${o} ${w.white(s.name)}`),console.log(`  ${w.gray(s.message)}`),s.fix&&console.log(`  ${w.cyan("Fix:")} ${s.fix}`),console.log()}console.log(w.white.bold("Summary:")),console.log(`  ${w.green(`${r} passing`)}`),n>0&&console.log(`  ${w.red(`${n} failing`)}`),t>0&&console.log(`  ${w.yellow(`${t} warnings`)}`),n===0&&t===0?console.log(w.green.bold(`
-\u2705 All checks passed! Your billing setup looks good.
-`)):n===0?console.log(w.yellow(`
-\u26A0\uFE0F  Some warnings - review above.
-`)):(console.log(w.red(`
-\u274C ${n} issue(s) need attention. Run the suggested fixes above.
-`)),console.log(w.gray(`Need help? https://github.com/drewsephski/monetize/issues
-`)))}var _=new bt;_.name("@drew/billing").description("CLI for @drew/billing - Add subscriptions to your app in 10 minutes").version("1.0.0");_.command("init").description("Initialize @drew/billing in your Next.js project").option("--skip-stripe","Skip Stripe product creation").option("--template <type>","Template type (saas, api, usage)","saas").option("--yes","Skip prompts and use defaults").action(Ce);_.command("add <component>").description("Add a billing component (pricing-table, upgrade-button, usage-meter)").option("--path <path>","Custom installation path").action(A);_.command("verify").description("Verify your billing setup is working correctly").action(Ee);_.command("sandbox").description("Toggle sandbox mode for testing without real charges").option("--enable","Enable sandbox mode").option("--disable","Disable sandbox mode").action(Te);_.command("whoami").description("Show current billing configuration").action(De);_.command("telemetry").description("Manage anonymous usage telemetry").option("--enable","Enable telemetry").option("--disable","Disable telemetry").action(je);_.command("doctor").description("Diagnose billing setup issues").action(Re);process.argv.length===2&&(console.log(H.blue.bold(`
-\u26A1 @drew/billing
-`)),console.log(`Add subscriptions to your app in 10 minutes.
-`),console.log(H.gray("Quick start:")),console.log(`  npx @drew/billing init
-`),console.log(H.gray("Commands:")),console.log("  init       Initialize billing in your project"),console.log("  add        Add prebuilt UI components"),console.log("  verify     Verify your setup"),console.log("  sandbox    Toggle sandbox mode"),console.log("  whoami     Show current configuration"),console.log("  doctor     Diagnose setup issues"),console.log(`  telemetry  Manage usage telemetry
-`),console.log(H.gray("Documentation:")),console.log(`  https://billing.drew.dev/docs
-`));_.parse();
-//# sourceMappingURL=index.js.map
+BILLING_SANDBOX_MODE=${newSandboxState}
+`;
+    }
+    await fs8.writeFile(envPath, envContent);
+    spinner.succeed();
+  } catch (error) {
+    spinner.fail("Failed to update sandbox mode");
+    console.log(error);
+    process.exit(1);
+  }
+  if (newSandboxState) {
+    console.log(chalk7.green.bold("\n\u2705 Sandbox mode ENABLED\n"));
+    console.log(chalk7.gray("What this means:"));
+    console.log(chalk7.gray("  \u2022 No real charges will be processed"));
+    console.log(chalk7.gray("  \u2022 Stripe test mode API keys used"));
+    console.log(chalk7.gray("  \u2022 Webhooks simulated locally"));
+    console.log(chalk7.gray("  \u2022 Usage tracked but not billed"));
+    console.log();
+    console.log(chalk7.yellow("Perfect for development and testing!"));
+  } else {
+    console.log(chalk7.yellow.bold("\n\u26A0\uFE0F  Sandbox mode DISABLED\n"));
+    console.log(chalk7.gray("What this means:"));
+    console.log(chalk7.gray("  \u2022 Real charges will be processed"));
+    console.log(chalk7.gray("  \u2022 Stripe live mode API keys required"));
+    console.log(chalk7.gray("  \u2022 Production webhooks active"));
+    console.log();
+    console.log(chalk7.red("Make sure you have live Stripe keys configured!"));
+  }
+  console.log();
+  console.log(chalk7.gray("Switch back anytime:"));
+  console.log(chalk7.cyan(`  npx @drew/billing sandbox`));
+  console.log();
+}
+
+// src/commands/whoami.ts
+import chalk8 from "chalk";
+import fs9 from "fs-extra";
+import path9 from "path";
+async function whoamiCommand() {
+  console.log(chalk8.blue.bold("\n\u{1F464} @drew/billing whoami\n"));
+  try {
+    const packageJson = await fs9.readJson(path9.join(process.cwd(), "package.json"));
+    console.log(chalk8.gray("Project:"), chalk8.white(packageJson.name || "Unknown"));
+    console.log(chalk8.gray("Version:"), chalk8.white(packageJson.version || "Unknown"));
+  } catch (error) {
+    console.log(chalk8.gray("Project:"), chalk8.yellow("Could not read package.json"));
+  }
+  const envPath = path9.join(process.cwd(), ".env.local");
+  const envVars = {};
+  try {
+    const envContent = await fs9.readFile(envPath, "utf-8");
+    envContent.split("\n").forEach((line) => {
+      const match = line.match(/^([A-Z_]+)=(.+)$/);
+      if (match) {
+        envVars[match[1]] = match[2].replace(/^["']/, "").replace(/["']$/, "");
+      }
+    });
+  } catch (error) {
+  }
+  console.log();
+  console.log(chalk8.gray("Environment:"));
+  const stripeKey = envVars.STRIPE_SECRET_KEY || "";
+  const isTestMode = stripeKey.startsWith("sk_test_");
+  const isLiveMode = stripeKey.startsWith("sk_live_");
+  if (isTestMode) {
+    console.log(chalk8.gray("  Stripe:"), chalk8.yellow("TEST MODE"));
+  } else if (isLiveMode) {
+    console.log(chalk8.gray("  Stripe:"), chalk8.green("LIVE MODE \u26A0\uFE0F"));
+  } else {
+    console.log(chalk8.gray("  Stripe:"), chalk8.red("Not configured"));
+  }
+  const sandboxMode = envVars.BILLING_SANDBOX_MODE === "true";
+  console.log(
+    chalk8.gray("  Sandbox:"),
+    sandboxMode ? chalk8.green("Enabled") : chalk8.gray("Disabled")
+  );
+  const apiUrl = envVars.NEXT_PUBLIC_BILLING_API_URL || envVars.BILLING_API_URL;
+  console.log(chalk8.gray("  API URL:"), apiUrl || chalk8.red("Not set"));
+  try {
+    const packageJson = await fs9.readJson(path9.join(process.cwd(), "package.json"));
+    const sdkVersion = packageJson.dependencies?.["@drew/billing-sdk"] || packageJson.devDependencies?.["@drew/billing-sdk"];
+    if (sdkVersion) {
+      console.log(chalk8.gray("  SDK:"), sdkVersion);
+    } else {
+      console.log(chalk8.gray("  SDK:"), chalk8.red("Not installed"));
+    }
+  } catch (error) {
+  }
+  console.log();
+  const componentsPath = path9.join(process.cwd(), "components/billing");
+  try {
+    const components = await fs9.readdir(componentsPath);
+    const componentFiles = components.filter((f) => f.endsWith(".tsx"));
+    if (componentFiles.length > 0) {
+      console.log(chalk8.gray("Installed Components:"));
+      componentFiles.forEach((file) => {
+        console.log(chalk8.gray("  \u2022"), file.replace(".tsx", ""));
+      });
+    } else {
+      console.log(chalk8.gray("Components:"), chalk8.yellow("None installed"));
+      console.log(chalk8.gray("  Install with: npx @drew/billing add <component>"));
+    }
+  } catch (error) {
+    console.log(chalk8.gray("Components:"), chalk8.yellow("None installed"));
+  }
+  console.log();
+  const hasDrizzleConfig = await fs9.pathExists(
+    path9.join(process.cwd(), "drizzle.config.ts")
+  );
+  console.log(
+    chalk8.gray("Database:"),
+    hasDrizzleConfig ? chalk8.green("Configured") : chalk8.yellow("Not configured")
+  );
+  const apiDir = path9.join(process.cwd(), "app/api");
+  const hasCheckout = await fs9.pathExists(path9.join(apiDir, "checkout/route.ts"));
+  const hasWebhooks = await fs9.pathExists(path9.join(apiDir, "webhooks/stripe/route.ts"));
+  console.log(chalk8.gray("API Routes:"));
+  console.log(chalk8.gray("  /api/checkout"), hasCheckout ? chalk8.green("\u2713") : chalk8.red("\u2717"));
+  console.log(chalk8.gray("  /api/webhooks/stripe"), hasWebhooks ? chalk8.green("\u2713") : chalk8.red("\u2717"));
+  console.log();
+  console.log(chalk8.gray("Commands:"));
+  console.log(chalk8.gray("  init       Initialize billing"));
+  console.log(chalk8.gray("  add        Add UI components"));
+  console.log(chalk8.gray("  verify     Verify setup"));
+  console.log(chalk8.gray("  sandbox    Toggle sandbox mode"));
+  console.log();
+}
+
+// src/commands/telemetry.ts
+import chalk9 from "chalk";
+async function telemetryCommand(options) {
+  console.log(chalk9.blue.bold("\n\u{1F4CA} Telemetry Settings\n"));
+  const config = loadTelemetryConfig();
+  if (options.enable) {
+    enableTelemetry();
+    console.log(chalk9.green("\u2705 Anonymous telemetry enabled"));
+    console.log(chalk9.gray("\nWe collect:"));
+    console.log(chalk9.gray("  \u2022 Command usage (init, add, verify, etc.)"));
+    console.log(chalk9.gray("  \u2022 Performance metrics (timing)"));
+    console.log(chalk9.gray("  \u2022 Error reports (no stack traces with PII)"));
+    console.log(chalk9.gray("\nWe NEVER collect:"));
+    console.log(chalk9.gray("  \u2022 Personal information"));
+    console.log(chalk9.gray("  \u2022 Stripe keys or API credentials"));
+    console.log(chalk9.gray("  \u2022 Code or project details"));
+    console.log(chalk9.gray("  \u2022 IP addresses"));
+    trackEvent("telemetry_enabled");
+    return;
+  }
+  if (options.disable) {
+    disableTelemetry();
+    console.log(chalk9.yellow("\u274C Anonymous telemetry disabled"));
+    console.log(chalk9.gray("You can re-enable anytime with: npx @drew/billing telemetry --enable"));
+    return;
+  }
+  console.log(chalk9.white("Current status:"));
+  console.log(`  Enabled: ${config.enabled ? chalk9.green("Yes") : chalk9.red("No")}`);
+  if (config.machineId) {
+    console.log(`  Machine ID: ${chalk9.gray(config.machineId)}`);
+  }
+  if (config.optedInAt) {
+    console.log(`  Decision date: ${chalk9.gray(config.optedInAt)}`);
+  }
+  console.log(chalk9.gray("\nUsage:"));
+  console.log(chalk9.gray("  npx @drew/billing telemetry --enable   # Enable telemetry"));
+  console.log(chalk9.gray("  npx @drew/billing telemetry --disable  # Disable telemetry"));
+  console.log(chalk9.gray("  npx @drew/billing telemetry            # Show status\n"));
+  if (!config.optedInAt) {
+    console.log(chalk9.blue("\u{1F4A1} Why enable telemetry?"));
+    console.log(chalk9.gray("Anonymous data helps us improve the CLI and catch bugs faster."));
+    console.log(chalk9.gray("No personal information is ever collected.\n"));
+  }
+}
+
+// src/commands/doctor.ts
+import chalk10 from "chalk";
+import { readFileSync as readFileSync2, existsSync as existsSync2 } from "fs";
+import { join as join2 } from "path";
+import { execa as execa3 } from "execa";
+async function doctorCommand() {
+  console.log(chalk10.blue.bold("\n\u{1F50D} @drew/billing doctor\n"));
+  console.log(chalk10.gray("Running diagnostics...\n"));
+  const checks = [];
+  checks.push(await checkEnvironmentVariables());
+  checks.push(await checkApiConnectivity());
+  checks.push(await checkWebhookConfig());
+  checks.push(await checkDatabaseConnection());
+  checks.push(await checkStripeConfig());
+  checks.push(await checkDependencies());
+  checks.push(await checkFramework());
+  displayResults(checks);
+}
+async function checkEnvironmentVariables() {
+  const envPath = join2(process.cwd(), ".env.local");
+  const envExamplePath = join2(process.cwd(), ".env.example");
+  let envContent = "";
+  if (existsSync2(envPath)) {
+    envContent = readFileSync2(envPath, "utf-8");
+  } else if (existsSync2(join2(process.cwd(), ".env"))) {
+    envContent = readFileSync2(join2(process.cwd(), ".env"), "utf-8");
+  }
+  const requiredVars = [
+    "STRIPE_SECRET_KEY",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_WEBHOOK_SECRET"
+  ];
+  const missingVars = requiredVars.filter((v) => !envContent.includes(v));
+  if (missingVars.length === 0) {
+    return {
+      name: "Environment Variables",
+      status: "pass",
+      message: "All required variables configured"
+    };
+  }
+  const hasExample = existsSync2(envExamplePath);
+  return {
+    name: "Environment Variables",
+    status: "fail",
+    message: `Missing: ${missingVars.join(", ")}`,
+    fix: hasExample ? `cp .env.example .env.local && edit with your Stripe keys` : `Create .env.local with:
+${requiredVars.map((v) => `${v}=...`).join("\n")}`
+  };
+}
+async function checkApiConnectivity() {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2e3);
+    const response = await fetch("http://localhost:3000/api/health", {
+      signal: controller.signal
+    }).catch(() => null);
+    clearTimeout(timeoutId);
+    if (response?.ok) {
+      return {
+        name: "API Connectivity",
+        status: "pass",
+        message: "Billing API responding at localhost:3000"
+      };
+    }
+    return {
+      name: "API Connectivity",
+      status: "warn",
+      message: "Dev server not running or API not accessible",
+      fix: "Start dev server: npm run dev"
+    };
+  } catch {
+    return {
+      name: "API Connectivity",
+      status: "warn",
+      message: "Could not connect to localhost:3000",
+      fix: "Start dev server: npm run dev"
+    };
+  }
+}
+async function checkWebhookConfig() {
+  const envPath = join2(process.cwd(), ".env.local");
+  let webhookSecret = "";
+  if (existsSync2(envPath)) {
+    const content = readFileSync2(envPath, "utf-8");
+    const match = content.match(/STRIPE_WEBHOOK_SECRET=(.+)/);
+    if (match) webhookSecret = match[1].trim();
+  }
+  if (!webhookSecret || webhookSecret === "whsec_...") {
+    return {
+      name: "Webhook Configuration",
+      status: "fail",
+      message: "Webhook secret not configured",
+      fix: "1. Run: stripe listen --forward-to http://localhost:3000/api/stripe/webhook\n2. Copy webhook secret to .env.local"
+    };
+  }
+  if (webhookSecret.startsWith("whsec_")) {
+    return {
+      name: "Webhook Configuration",
+      status: "pass",
+      message: "Webhook secret configured"
+    };
+  }
+  return {
+    name: "Webhook Configuration",
+    status: "warn",
+    message: "Webhook secret format looks unusual",
+    fix: "Verify STRIPE_WEBHOOK_SECRET starts with 'whsec_'"
+  };
+}
+async function checkDatabaseConnection() {
+  try {
+    const hasDrizzleConfig = existsSync2(join2(process.cwd(), "drizzle.config.ts"));
+    if (!hasDrizzleConfig) {
+      return {
+        name: "Database Connection",
+        status: "fail",
+        message: "No Drizzle config found",
+        fix: "Run: npx @drew/billing init to set up database"
+      };
+    }
+    try {
+      await execa3("npx", ["drizzle-kit", "check"], {
+        cwd: process.cwd(),
+        timeout: 1e4,
+        reject: false
+      });
+      return {
+        name: "Database Connection",
+        status: "pass",
+        message: "Database configuration found"
+      };
+    } catch {
+      return {
+        name: "Database Connection",
+        status: "warn",
+        message: "Database config exists but connection not verified",
+        fix: "Run: npx drizzle-kit push to sync schema"
+      };
+    }
+  } catch {
+    return {
+      name: "Database Connection",
+      status: "warn",
+      message: "Could not verify database connection"
+    };
+  }
+}
+async function checkStripeConfig() {
+  const envPath = join2(process.cwd(), ".env.local");
+  let stripeKey = "";
+  if (existsSync2(envPath)) {
+    const content = readFileSync2(envPath, "utf-8");
+    const match = content.match(/STRIPE_SECRET_KEY=(.+)/);
+    if (match) stripeKey = match[1].trim();
+  }
+  if (!stripeKey) {
+    return {
+      name: "Stripe Configuration",
+      status: "fail",
+      message: "STRIPE_SECRET_KEY not found",
+      fix: "Add STRIPE_SECRET_KEY=sk_test_... to .env.local"
+    };
+  }
+  if (stripeKey.startsWith("sk_test_")) {
+    return {
+      name: "Stripe Configuration",
+      status: "pass",
+      message: "Test mode Stripe key configured"
+    };
+  }
+  if (stripeKey.startsWith("sk_live_")) {
+    return {
+      name: "Stripe Configuration",
+      status: "warn",
+      message: "\u26A0\uFE0F Live Stripe key detected",
+      fix: "Use test keys for development: https://dashboard.stripe.com/test/apikeys"
+    };
+  }
+  return {
+    name: "Stripe Configuration",
+    status: "fail",
+    message: "Invalid Stripe key format",
+    fix: "Key should start with sk_test_ or sk_live_"
+  };
+}
+async function checkDependencies() {
+  const packagePath = join2(process.cwd(), "package.json");
+  if (!existsSync2(packagePath)) {
+    return {
+      name: "Dependencies",
+      status: "fail",
+      message: "No package.json found",
+      fix: "Run: npm init"
+    };
+  }
+  try {
+    const pkg = JSON.parse(readFileSync2(packagePath, "utf-8"));
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    const required = ["stripe", "drizzle-orm"];
+    const missing = required.filter((d) => !deps[d]);
+    if (missing.length === 0) {
+      return {
+        name: "Dependencies",
+        status: "pass",
+        message: "All required packages installed"
+      };
+    }
+    return {
+      name: "Dependencies",
+      status: "fail",
+      message: `Missing: ${missing.join(", ")}`,
+      fix: `npm install ${missing.join(" ")}`
+    };
+  } catch {
+    return {
+      name: "Dependencies",
+      status: "warn",
+      message: "Could not parse package.json"
+    };
+  }
+}
+async function checkFramework() {
+  const framework = await detectFramework();
+  if (framework.name === "nextjs") {
+    return {
+      name: "Framework Support",
+      status: "pass",
+      message: `Next.js ${framework.version || ""} detected`
+    };
+  }
+  return {
+    name: "Framework Support",
+    status: "warn",
+    message: `${framework.name} detected (limited support)`,
+    fix: "Next.js is fully supported. Other frameworks have basic support."
+  };
+}
+function displayResults(checks) {
+  const passed = checks.filter((c) => c.status === "pass").length;
+  const failed = checks.filter((c) => c.status === "fail").length;
+  const warnings = checks.filter((c) => c.status === "warn").length;
+  console.log(chalk10.white.bold("Results:\n"));
+  for (const check of checks) {
+    const icon = check.status === "pass" ? chalk10.green("\u2713") : check.status === "fail" ? chalk10.red("\u2717") : chalk10.yellow("\u26A0");
+    console.log(`${icon} ${chalk10.white(check.name)}`);
+    console.log(`  ${chalk10.gray(check.message)}`);
+    if (check.fix) {
+      console.log(`  ${chalk10.cyan("Fix:")} ${check.fix}`);
+    }
+    console.log();
+  }
+  console.log(chalk10.white.bold("Summary:"));
+  console.log(`  ${chalk10.green(`${passed} passing`)}`);
+  if (failed > 0) console.log(`  ${chalk10.red(`${failed} failing`)}`);
+  if (warnings > 0) console.log(`  ${chalk10.yellow(`${warnings} warnings`)}`);
+  if (failed === 0 && warnings === 0) {
+    console.log(chalk10.green.bold("\n\u2705 All checks passed! Your billing setup looks good.\n"));
+  } else if (failed === 0) {
+    console.log(chalk10.yellow("\n\u26A0\uFE0F  Some warnings - review above.\n"));
+  } else {
+    console.log(chalk10.red(`
+\u274C ${failed} issue(s) need attention. Run the suggested fixes above.
+`));
+    console.log(chalk10.gray("Need help? https://github.com/drewsephski/monetize/issues\n"));
+  }
+}
+
+// src/index.ts
+var program = new Command();
+program.name("@drew/billing").description("CLI for @drew/billing - Add subscriptions to your app in 10 minutes").version("1.0.0");
+program.command("init").description("Initialize @drew/billing in your Next.js project").option("--skip-stripe", "Skip Stripe product creation").option("--template <type>", "Template type (saas, api, usage)", "saas").option("--yes", "Skip prompts and use defaults").action(initCommand);
+program.command("add <component>").description("Add a billing component (pricing-table, upgrade-button, usage-meter)").option("--path <path>", "Custom installation path").action(addCommand);
+program.command("verify").description("Verify your billing setup is working correctly").action(verifyCommand);
+program.command("sandbox").description("Toggle sandbox mode for testing without real charges").option("--enable", "Enable sandbox mode").option("--disable", "Disable sandbox mode").action(sandboxCommand);
+program.command("whoami").description("Show current billing configuration").action(whoamiCommand);
+program.command("telemetry").description("Manage anonymous usage telemetry").option("--enable", "Enable telemetry").option("--disable", "Disable telemetry").action(telemetryCommand);
+program.command("doctor").description("Diagnose billing setup issues").action(doctorCommand);
+if (process.argv.length === 2) {
+  console.log(chalk11.blue.bold("\n\u26A1 @drew/billing\n"));
+  console.log("Add subscriptions to your app in 10 minutes.\n");
+  console.log(chalk11.gray("Quick start:"));
+  console.log("  npx @drew/billing init\n");
+  console.log(chalk11.gray("Commands:"));
+  console.log("  init       Initialize billing in your project");
+  console.log("  add        Add prebuilt UI components");
+  console.log("  verify     Verify your setup");
+  console.log("  sandbox    Toggle sandbox mode");
+  console.log("  whoami     Show current configuration");
+  console.log("  doctor     Diagnose setup issues");
+  console.log("  telemetry  Manage usage telemetry\n");
+  console.log(chalk11.gray("Documentation:"));
+  console.log("  https://billing.drew.dev/docs\n");
+}
+program.parse();

@@ -130,10 +130,16 @@ export interface RetryConfig {
   maxDelay: number;
 }
 
+export interface LicenseOptions {
+  licenseKey: string;
+  machineId?: string; // Optional: unique machine identifier for tracking
+}
+
 export interface BillingClientOptions {
   baseUrl: string;
   timeout?: number;
   retryConfig?: RetryConfig;
+  license?: LicenseOptions; // For SDK license monetization
 }
 
 export enum BillingErrorCode {

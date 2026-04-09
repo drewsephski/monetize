@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-03-25.dahlia",
+});
+
+// Map plan IDs to Stripe price IDs from environment variables
+const PRICE_MAP: Record<string, string> = {
+  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || "",
+  growth: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "",
+  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "",
+  scale: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || "",
+  enterprise: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || "",
+};
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin") || "http://localhost:3000";
 
   try {
-    const { planId } = await request.json();
+    const { planId, priceId: directPriceId, userId, successUrl, cancelUrl, trialDays } = await request.json();
 
-    if (!planId) {
-      return NextResponse.json({ error: "Missing planId." }, { status: 400 });
+    // Support both planId (mapped to env var) or direct priceId
+    const priceId = directPriceId || PRICE_MAP[planId] || "";
+
+    if (!priceId) {
+      return NextResponse.json({ 
+        error: `Missing priceId for plan: ${planId}. Ensure NEXT_PUBLIC_STRIPE_PRICE_${planId?.toUpperCase()} is set in .env.local` 
+      }, { status: 400 });
     }
 
     const sandboxEnabled =
@@ -18,19 +37,59 @@ export async function POST(request: NextRequest) {
     if (sandboxEnabled) {
       return NextResponse.json({
         sandbox: true,
-        url: `${origin}/dashboard?plan=${encodeURIComponent(planId)}&sandbox=1`,
+        url: `${origin}/dashboard?plan=${encodeURIComponent(planId || "starter")}&sandbox=1`,
       });
     }
 
-    // Replace this with a real Stripe Checkout session when wiring production billing.
-    return NextResponse.json(
-      {
-        error: "Stripe Checkout is not configured yet. Enable sandbox mode or plug in your live Checkout session creation here.",
-      },
-      { status: 400 }
-    );
+    const userEmail = request.headers.get("x-user-email") || undefined;
+
+    let customerId: string | undefined;
+    
+    if (userEmail) {
+      const existingCustomers = await stripe.customers.list({
+        email: userEmail,
+        limit: 1,
+      });
+      if (existingCustomers.data.length > 0) {
+        customerId = existingCustomers.data[0].id;
+      }
+    }
+
+    if (!customerId && userEmail) {
+      const customer = await stripe.customers.create({
+        email: userEmail,
+        metadata: { userId: userId || "anonymous" },
+      });
+      customerId = customer.id;
+    }
+
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: "subscription",
+      success_url: successUrl || `${origin}/dashboard?success=true`,
+      cancel_url: cancelUrl || `${origin}/pricing`,
+      client_reference_id: userId,
+      ...(customerId && { customer: customerId }),
+      subscription_data: trialDays && trialDays > 0
+        ? { trial_period_days: trialDays }
+        : undefined,
+      allow_promotion_codes: true,
+      billing_address_collection: "required",
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (error) {
-    console.error("Checkout error", error);
-    return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
+    console.error("Checkout error:", error);
+    return NextResponse.json(
+      { error: "Unable to start checkout." },
+      { status: 500 }
+    );
   }
 }

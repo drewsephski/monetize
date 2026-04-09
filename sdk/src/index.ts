@@ -11,7 +11,9 @@ import {
 } from "./entitlements";
 import { trackUsage, getUsage } from "./usage";
 import { telemetry, enableTelemetry, isTelemetryEnabled } from "./telemetry";
+import { createLicenseManager } from "./license";
 import type { TrackUsageOptions, TrackUsageResult, GetUsageOptions, GetUsageResult } from "./usage";
+import type { LicenseOptions, LicenseManager, LicenseValidationResult } from "./license";
 import {
   CheckoutOptions,
   CheckoutResult,
@@ -34,6 +36,8 @@ import {
 
 export class BillingSDK {
   private client: BillingClient;
+  private licenseManager: LicenseManager | null = null;
+  private licenseValidated: boolean = false;
 
   // Checkout
   createCheckout: ReturnType<typeof createCheckout>;
@@ -58,6 +62,11 @@ export class BillingSDK {
   constructor(options: BillingClientOptions) {
     this.client = new BillingClient(options);
 
+    // Initialize license manager if license key provided
+    if (options.license) {
+      this.initializeLicense(options.license);
+    }
+
     // Checkout
     this.createCheckout = createCheckout(this.client);
 
@@ -78,6 +87,70 @@ export class BillingSDK {
     this.trackUsage = trackUsage(this.client);
     this.getUsage = getUsage(this.client);
   }
+
+  private async initializeLicense(options: LicenseOptions): Promise<void> {
+    try {
+      this.licenseManager = await createLicenseManager(this.client, options);
+      this.licenseValidated = true;
+    } catch {
+      // License validation will fail lazily when features are accessed
+      this.licenseValidated = false;
+    }
+  }
+
+  /**
+   * Validate the SDK license
+   * Returns license details if valid, throws error if invalid
+   */
+  async validateLicense(): Promise<LicenseValidationResult> {
+    if (!this.licenseManager) {
+      throw new BillingError(
+        "No license key configured. Set license.licenseKey in BillingSDK options.",
+        BillingErrorCode.UNAUTHORIZED,
+        401
+      );
+    }
+
+    const result = await this.licenseManager.validate();
+    this.licenseValidated = result.valid;
+    return result;
+  }
+
+  /**
+   * Check if the SDK license has a specific feature
+   */
+  async licenseHasFeature(feature: string): Promise<boolean> {
+    if (!this.licenseManager) {
+      return false; // No license = no premium features
+    }
+
+    return this.licenseManager.hasFeature(feature);
+  }
+
+  /**
+   * Check license usage limits
+   */
+  async checkLicenseUsage(metric: string, increment: number = 0): Promise<{ allowed: boolean; remaining: number }> {
+    if (!this.licenseManager) {
+      return { allowed: false, remaining: 0 };
+    }
+
+    return this.licenseManager.checkUsage(metric, increment);
+  }
+
+  /**
+   * Get the license manager instance
+   */
+  getLicenseManager(): LicenseManager | null {
+    return this.licenseManager;
+  }
+
+  /**
+   * Check if license has been validated
+   */
+  isLicenseValid(): boolean {
+    return this.licenseValidated;
+  }
 }
 
 export {
@@ -94,6 +167,7 @@ export {
   isTrialActive,
   trackUsage,
   getUsage,
+  createLicenseManager,
 };
 
 export {
@@ -121,4 +195,7 @@ export type {
   TrackUsageResult,
   GetUsageOptions,
   GetUsageResult,
+  LicenseOptions,
+  LicenseManager,
+  LicenseValidationResult,
 };

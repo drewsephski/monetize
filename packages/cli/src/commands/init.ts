@@ -332,6 +332,29 @@ export async function initCommand(options: InitOptions) {
       BILLING_API_URL: "http://localhost:3000",
     };
 
+    // Add price IDs from created Stripe products
+    if (products.length > 0 && results.stripeProducts) {
+      const starterProduct = products.find((p) => /starter|free|basic/i.test(p.name));
+      const proProduct = products.find((p) => /pro|growth|paid|standard/i.test(p.name));
+      const enterpriseProduct = products.find((p) => /enterprise|scale|advanced|business/i.test(p.name));
+      
+      if (starterProduct) {
+        envVars.NEXT_PUBLIC_STRIPE_PRICE_STARTER = starterProduct.priceId;
+      }
+      if (proProduct) {
+        envVars.NEXT_PUBLIC_STRIPE_PRICE_PRO = proProduct.priceId;
+      }
+      if (enterpriseProduct) {
+        envVars.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE = enterpriseProduct.priceId;
+      }
+      
+      // Add all product price IDs dynamically
+      products.forEach((product) => {
+        const key = `NEXT_PUBLIC_STRIPE_PRICE_${product.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+        envVars[key] = product.priceId;
+      });
+    }
+
     await updateEnvFile(envVars);
     envSpinner.succeed("Environment variables configured");
     results.env = true;
@@ -454,9 +477,16 @@ function printSuccessPanel({
     });
   }
 
+  // Webhook setup guidance
+  console.log(chalk.blue("\n🔗 Webhook Setup (Required for Production)"));
+  console.log(chalk.gray("Webhooks sync subscription data between Stripe and your database."));
+  console.log(chalk.gray("Local dev:  "), chalk.cyan("npx drew-billing-cli setup-webhook"));
+  console.log(chalk.gray("Production: Deploy to Vercel → Add Stripe webhook → Configure secrets"));
+
   console.log();
-  console.log(chalk.gray("Docs:"), chalk.underline("https://billing.drew.dev/docs"));
+  console.log(chalk.gray("Docs:"), chalk.underline("https://github.com/drewsephski/monetize"));
   console.log(chalk.gray("Diagnostics:"), chalk.cyan("npx drew-billing-cli doctor"));
+  console.log(chalk.gray("Webhooks:"), chalk.cyan("npx drew-billing-cli setup-webhook"));
   console.log(chalk.gray("Support:"), chalk.underline("https://github.com/drewsephski/monetize/issues"));
   console.log();
 }

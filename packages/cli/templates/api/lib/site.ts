@@ -1,4 +1,4 @@
-import { Activity, CreditCard, KeyRound, Shield, Sparkles } from "lucide-react";
+import { Activity, CreditCard, Shield, Sparkles } from "lucide-react";
 import type { SiteConfig } from "@/components/example-kit";
 
 export const siteConfig: SiteConfig = {
@@ -121,6 +121,13 @@ export const comparisonRows = [
   ["API key count", "1", "5", "Unlimited"],
   ["Usage analytics", "Basic", "Detailed", "Detailed + support"],
 ];
+
+// Map plan IDs to Stripe price IDs from environment variables
+export const priceIdMap: Record<string, string> = {
+  free: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || "",
+  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "",
+  enterprise: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || "",
+};
 
 export function createSandboxKey(plan: string) {
   const suffix = Math.random().toString(36).slice(2, 10);

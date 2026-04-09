@@ -152,6 +152,7 @@ type SubscriptionData = {
     id: string;
     status: string;
     planId: string | null;
+    stripePriceId: string | null;
     planName: string | null;
     currentPeriodEnd: string | null;
   } | null;
@@ -193,8 +194,8 @@ export default function PricingPage() {
   };
 
   const getCurrentPlanId = () => {
-    if (!subscriptionData?.subscription?.planId) return null;
-    const priceId = subscriptionData.subscription.planId;
+    if (!subscriptionData?.subscription?.stripePriceId) return null;
+    const priceId = subscriptionData.subscription.stripePriceId;
     for (const [planId, mappedPriceId] of Object.entries(PLAN_PRICE_MAP)) {
       if (mappedPriceId === priceId) return planId;
     }

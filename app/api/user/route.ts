@@ -35,11 +35,13 @@ export async function GET(request: Request) {
 
     // Get plan details if subscription exists
     let planName = null;
+    let stripePriceId = null;
     if (activeSubscription?.planId) {
       const plan = await db.query.plans.findFirst({
         where: eq(plans.id, activeSubscription.planId),
       });
       planName = plan?.name || null;
+      stripePriceId = plan?.stripePriceId || null;
     }
 
     return NextResponse.json({
@@ -62,6 +64,7 @@ export async function GET(request: Request) {
             id: activeSubscription.id,
             status: activeSubscription.status,
             planId: activeSubscription.planId,
+            stripePriceId,
             planName,
             currentPeriodEnd: activeSubscription.currentPeriodEnd,
           }

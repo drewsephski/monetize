@@ -842,7 +842,7 @@ export default function Page() {
             </div>
 
             <p className="text-sm text-[#78716c]">
-              © 2024 billing. MIT License.
+              © 2026 billing. MIT License.
             </p>
           </div>
         </div>

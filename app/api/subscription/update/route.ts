@@ -94,17 +94,19 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const upcomingInvoice = await (stripe as any).invoices.retrieveUpcoming({
+      const upcomingInvoice = await stripe.invoices.createPreview({
         customer: customer.stripeCustomerId,
         subscription: activeSubscription.stripeSubscriptionId,
-        subscription_items: [
-          {
-            id: currentItemId,
-            price: newPriceId,
-            quantity: 1,
-          },
-        ],
-        subscription_proration_behavior: prorationBehavior,
+        subscription_details: {
+          items: [
+            {
+              id: currentItemId,
+              price: newPriceId,
+              quantity: 1,
+            },
+          ],
+          proration_behavior: prorationBehavior as "create_prorations" | "none",
+        },
       });
 
       requestLogger.info(
@@ -119,7 +121,9 @@ export async function POST(req: NextRequest) {
           currency: upcomingInvoice.currency,
           subtotal: upcomingInvoice.subtotal,
           total: upcomingInvoice.total,
-          prorationDate: upcomingInvoice.proration_date,
+          prorationDate: (upcomingInvoice as unknown as { proration_date?: number }).proration_date
+            ? new Date((upcomingInvoice as unknown as { proration_date?: number }).proration_date! * 1000).toISOString()
+            : null,
           lines: upcomingInvoice.lines.data.map((line: Stripe.InvoiceLineItem) => ({
             description: line.description,
             amount: line.amount,
@@ -205,11 +209,11 @@ export async function POST(req: NextRequest) {
         status: updatedStripeSubscription.status,
         planId: newPlan.id,
         planName: newPlan.name,
-        currentPeriodStart: (updatedStripeSubscription as any).current_period_start
-          ? new Date((updatedStripeSubscription as any).current_period_start * 1000).toISOString()
+        currentPeriodStart: (updatedStripeSubscription as unknown as { current_period_start?: number }).current_period_start
+          ? new Date((updatedStripeSubscription as unknown as { current_period_start?: number }).current_period_start! * 1000).toISOString()
           : null,
-        currentPeriodEnd: (updatedStripeSubscription as any).current_period_end
-          ? new Date((updatedStripeSubscription as any).current_period_end * 1000).toISOString()
+        currentPeriodEnd: (updatedStripeSubscription as unknown as { current_period_end?: number }).current_period_end
+          ? new Date((updatedStripeSubscription as unknown as { current_period_end?: number }).current_period_end! * 1000).toISOString()
           : null,
         prorationBehavior,
         billingCycleAnchor,

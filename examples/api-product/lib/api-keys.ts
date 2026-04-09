@@ -25,8 +25,8 @@ interface ApiKeyData {
   id: string;
   userId: string;
   plan: string;
-  name?: string;
-  rateLimitPerMinute: number;
+  name: string | null;
+  rateLimitPerMinute: number | null;
 }
 
 interface RateLimitResult {

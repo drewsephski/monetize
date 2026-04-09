@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Timer, X } from "lucide-react";
@@ -20,15 +20,12 @@ export function TrialBanner({
   className,
 }: TrialBannerProps) {
   const [dismissed, setDismissed] = useState(false);
-  const [daysLeft, setDaysLeft] = useState(0);
 
-  useEffect(() => {
-    const endDate = new Date(trialEndsAt);
-    const now = new Date();
-    const diffTime = endDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    setDaysLeft(Math.max(0, diffDays));
-  }, [trialEndsAt]);
+  // Calculate daysLeft directly during render (derived from prop)
+  const endDate = new Date(trialEndsAt);
+  const now = new Date();
+  const diffTime = endDate.getTime() - now.getTime();
+  const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
   if (dismissed || daysLeft <= 0) {
     return null;

@@ -1,5 +1,5 @@
 {
-  "name": "@drew/billing-sdk",
+  "name": "drew-billing-sdk",
   "version": "1.0.0",
   "description": "TypeScript SDK for @drew/billing - Add subscriptions and usage billing to your app",
   "type": "module",

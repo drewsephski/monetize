@@ -47,7 +47,7 @@ const HOSTED_PLANS = [
     description: "For growing teams",
     price: 29,
     interval: "month",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKOSiRZE8Whwvf0DwqOcFUk",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKR4nRZE8Whwvf0J1c7e0Vz",
     features: [
       "Up to 10,000 customers",
       "Hosted billing dashboard",
@@ -101,6 +101,7 @@ const SDK_PLANS = [
     name: "Pro",
     description: "For indie developers",
     price: 29,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_PRO || "price_1TKOSiRZE8Whwvf0DwqOcFUk",
     features: [
       "10,000 API calls per month",
       "5 active projects",
@@ -117,6 +118,7 @@ const SDK_PLANS = [
     name: "Team",
     description: "For dev teams & agencies",
     price: 99,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_TEAM || "price_1TKOSjRZE8Whwvf0GunJcrO3",
     features: [
       "100,000 API calls per month",
       "20 active projects",
@@ -132,6 +134,7 @@ const SDK_PLANS = [
     name: "Enterprise",
     description: "For large platforms",
     price: 499,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_ENTERPRISE || "price_1TKOSjRZE8Whwvf0EgF5Flpy",
     features: [
       "Unlimited API calls",
       "Unlimited projects",
@@ -156,7 +159,7 @@ type SubscriptionData = {
 };
 
 const PLAN_PRICE_MAP: Record<string, string> = {
-  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKOSiRZE8Whwvf0DwqOcFUk",
+  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKR4nRZE8Whwvf0J1c7e0Vz",
   growth: process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH || "price_1TKNcXRZE8Whwvf0LPFCoLvn",
 };
 
@@ -285,19 +288,20 @@ export default function PricingPage() {
     setLoading(planId);
     setError(null);
 
+    // Find the plan to get its priceId
+    const plan = SDK_PLANS.find((p) => p.id === planId);
+    if (!plan || !plan.priceId) {
+      setError("Invalid plan configuration");
+      setLoading(null);
+      return;
+    }
+
     try {
-      const sdkPriceIds: Record<string, string> = {
-        "sdk-pro": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_PRO || "",
-        "sdk-team": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_TEAM || "",
-      };
-
-      const priceId = sdkPriceIds[planId] || process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
-
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          priceId,
+          priceId: plan.priceId,
           userId: session.user.id,
           successUrl: `${window.location.origin}/checkout/success?type=sdk_license`,
           cancelUrl: `${window.location.origin}/checkout/cancel`,

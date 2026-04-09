@@ -57,6 +57,7 @@ const COMPONENTS = {
 
 interface AddOptions {
   path?: string;
+  cwd?: string;
 }
 
 export async function addCommand(component: string, options: AddOptions) {
@@ -79,7 +80,8 @@ export async function addCommand(component: string, options: AddOptions) {
 
   const componentInfo = COMPONENTS[component as keyof typeof COMPONENTS];
   const installPath = options.path || "components/billing";
-  const fullPath = path.join(process.cwd(), installPath);
+  const cwd = options.cwd || process.cwd();
+  const fullPath = path.join(cwd, installPath);
 
   console.log(chalk.gray(`Installing ${componentInfo.name}...\n`));
 
@@ -110,7 +112,7 @@ export async function addCommand(component: string, options: AddOptions) {
     console.log(chalk.cyan(`import { ${componentInfo.name} } from "${installPath}/${component.replace("billing-portal", "billing-portal-button")}";`));
   }
   console.log();
-  console.log(chalk.gray("Documentation:"), chalk.underline("https://billing.drew.dev/docs/components"));
+  console.log(chalk.gray("Documentation:"), chalk.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
   console.log();
 }
 

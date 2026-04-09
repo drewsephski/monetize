@@ -10,7 +10,7 @@ import chalk from "chalk";
 
 const TELEMETRY_DIR = join(homedir(), ".drew-billing");
 const TELEMETRY_FILE = join(TELEMETRY_DIR, "telemetry.json");
-const TELEMETRY_ENDPOINT = process.env.TELEMETRY_ENDPOINT || "https://billing.drew.dev/api/internal/telemetry";
+const TELEMETRY_ENDPOINT = process.env.TELEMETRY_ENDPOINT || ""; // Disabled by default
 
 export interface CLITelemetryConfig {
   enabled: boolean;
@@ -130,6 +130,14 @@ export function trackTiming(event: string, durationMs: number, metadata?: Record
 
 // Send event to endpoint
 async function sendEvent(event: TelemetryEvent): Promise<void> {
+  if (!TELEMETRY_ENDPOINT) {
+    // Telemetry disabled - just log to console in debug mode
+    if (process.env.DEBUG === "true") {
+      console.log("[Telemetry]", event);
+    }
+    return;
+  }
+  
   try {
     await fetch(TELEMETRY_ENDPOINT, {
       method: "POST",

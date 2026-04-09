@@ -23,6 +23,7 @@ interface InitConfig {
   stripeSecretKey: string;
   stripePublishableKey: string;
   webhookSecret: string;
+  databaseUrl: string;
   template: string;
   createProducts: boolean;
 }
@@ -47,22 +48,32 @@ export async function initCommand(options: InitOptions) {
   const isEmptyDir = await isDirectoryEmpty(cwd);
   const hasPackageJson = await fs.pathExists(path.join(cwd, "package.json"));
 
+  // Debug logging
+  console.log(chalk.gray(`Debug: cwd=${cwd}, isEmptyDir=${isEmptyDir}, hasPackageJson=${hasPackageJson}`));
+
   let pkgManager: PackageManager = "npm";
   let projectName = path.basename(cwd);
   let detectedFramework: { name: string; version?: string } = { name: "nextjs" };
+  let projectScaffolded = false;
 
   // STEP 0: Scaffold Next.js project if directory is empty
   if (isEmptyDir || !hasPackageJson) {
     console.log(chalk.yellow("📁 No existing project detected."));
     
-    const { shouldScaffold } = await inquirer.prompt([
-      {
-        type: "confirm",
-        name: "shouldScaffold",
-        message: "Create a new Next.js project here?",
-        default: true,
-      },
-    ]);
+    // Auto-confirm if --yes flag is passed
+    let shouldScaffold = options.yes;
+    
+    if (!options.yes) {
+      const answer = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "shouldScaffold",
+          message: "Create a new Next.js project here?",
+          default: true,
+        },
+      ]);
+      shouldScaffold = answer.shouldScaffold;
+    }
 
     if (!shouldScaffold) {
       console.log(chalk.gray("\nAborted. Please run this in an existing Next.js project directory.\n"));
@@ -78,7 +89,16 @@ export async function initCommand(options: InitOptions) {
     
     pkgManager = scaffoldResult.pkgManager;
     projectName = scaffoldResult.projectName;
+    projectScaffolded = true;
+    detectedFramework = { name: "nextjs", version: "latest" };
     console.log(chalk.green(`\n✅ Created Next.js project: ${projectName}\n`));
+    
+    // Re-check for package.json after scaffolding
+    const hasPackageJsonAfter = await fs.pathExists(path.join(cwd, "package.json"));
+    if (!hasPackageJsonAfter) {
+      console.log(chalk.red("\n❌ Scaffolded project missing package.json"));
+      process.exit(1);
+    }
   } else {
     // Detect existing framework
     const spinner = ora("Detecting framework...").start();
@@ -121,6 +141,7 @@ export async function initCommand(options: InitOptions) {
       stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
       stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+      databaseUrl: process.env.DATABASE_URL || "",
       template: options.template || "saas",
       createProducts: !options.skipStripe,
     };
@@ -145,6 +166,21 @@ export async function initCommand(options: InitOptions) {
           input.startsWith("pk_test_") || input.startsWith("pk_live_")
             ? true
             : "Must start with pk_test_ or pk_live_",
+      },
+      {
+        type: "input",
+        name: "databaseUrl",
+        message: "Database URL (postgresql://...):",
+        default: process.env.DATABASE_URL,
+        validate: (input: string) => {
+          if (!input || input.trim() === "") {
+            return "Database URL is required (use your Neon or local Postgres URL)";
+          }
+          if (!input.startsWith("postgresql://") && !input.startsWith("postgres://")) {
+            return "Must start with postgresql:// or postgres://";
+          }
+          return true;
+        },
       },
       {
         type: "list",
@@ -173,7 +209,7 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.blue.bold("\n📦 Setting up @drew/billing...\n"));
 
   const results: InitResults = {
-    projectScaffolded: isEmptyDir || !hasPackageJson,
+    projectScaffolded,
     dependencies: false,
     stripeProducts: false,
     database: false,
@@ -183,38 +219,49 @@ export async function initCommand(options: InitOptions) {
 
   const errors: string[] = [];
 
-  // 1. Install dependencies with retry logic
-  const depsSpinner = ora("Installing dependencies...").start();
+  // 1. Install core dependencies first (stripe is essential)
+  const depsSpinner = ora("Installing core dependencies...").start();
   try {
-    // Try with different package managers if one fails
-    await installWithRetry(["@drew/billing-sdk", "stripe"], pkgManager, depsSpinner);
-    depsSpinner.succeed("Dependencies installed");
+    await installWithRetry(["stripe"], pkgManager, depsSpinner, false, 2, cwd);
+    depsSpinner.succeed("Core dependencies installed");
     results.dependencies = true;
   } catch (error) {
-    depsSpinner.fail("Failed to install dependencies");
+    depsSpinner.fail("Failed to install core dependencies");
     const errorMsg = error instanceof Error ? error.message : String(error);
     errors.push(`Dependencies: ${errorMsg}`);
-    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} @drew/billing-sdk stripe`));
+    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} stripe`));
   }
 
-  // 1b. Install additional required dependencies
-  if (results.dependencies) {
-    const addDepsSpinner = ora("Installing additional dependencies...").start();
-    try {
-      await installWithRetry([
-        "drizzle-orm", 
-        "@neondatabase/serverless", 
-        "drizzle-kit", 
-        "@types/node", 
-        "typescript", 
-        "stripe"
-      ], pkgManager, addDepsSpinner, true);
-      addDepsSpinner.succeed("Additional dependencies installed");
-    } catch {
-      addDepsSpinner.warn("Some additional dependencies may need manual installation");
-      console.log(chalk.gray("You can install them later if needed."));
-    }
+  // 1b. Install database dependencies (drizzle-kit must be installed before push)
+  const dbDepsSpinner = ora("Installing database dependencies...").start();
+  try {
+    await installWithRetry(
+      ["drizzle-orm", "@neondatabase/serverless", "drizzle-kit"],
+      pkgManager,
+      dbDepsSpinner,
+      false,
+      2,
+      cwd
+    );
+    dbDepsSpinner.succeed("Database dependencies installed");
+  } catch (error) {
+    dbDepsSpinner.fail("Failed to install database dependencies");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errors.push(`DB Dependencies: ${errorMsg}`);
+    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} drizzle-orm @neondatabase/serverless drizzle-kit`));
   }
+
+  // 1c. Install dev dependencies
+  const devDepsSpinner = ora("Installing dev dependencies...").start();
+  try {
+    await installWithRetry(["@types/node", "typescript"], pkgManager, devDepsSpinner, true, 2, cwd);
+    devDepsSpinner.succeed("Dev dependencies installed");
+  } catch {
+    devDepsSpinner.warn("Some dev dependencies may need manual installation");
+  }
+
+  // 1d. Note about SDK
+  console.log(chalk.gray("\nNote: @drew/billing-sdk will be available when published. For now, the CLI provides all needed components.\n"));
 
   // 2. Create Stripe products (with better error handling)
   let products: Array<{ id: string; name: string; priceId: string }> = [];
@@ -270,7 +317,7 @@ export async function initCommand(options: InitOptions) {
     await fs.ensureDir(path.join(cwd, "app"));
     await fs.ensureDir(path.join(cwd, "components"));
     
-    await installTemplates(config.template, products);
+    await installTemplates(config.template, products, cwd);
     templateSpinner.succeed(`Template installed`);
     results.templates = true;
   } catch (error) {
@@ -288,15 +335,9 @@ export async function initCommand(options: InitOptions) {
       STRIPE_SECRET_KEY: config.stripeSecretKey,
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: config.stripePublishableKey,
       STRIPE_WEBHOOK_SECRET: config.webhookSecret || "whsec_... (run: stripe listen --forward-to localhost:3000/api/webhooks/stripe)",
+      DATABASE_URL: config.databaseUrl || "postgresql://username:password@localhost:5432/database_name",
       BILLING_API_URL: "http://localhost:3000",
     };
-
-    // Add placeholder DATABASE_URL if not present
-    const envPath = path.join(cwd, ".env.local");
-    const existingEnv = await fs.readFile(envPath, "utf-8").catch(() => "");
-    if (!existingEnv.includes("DATABASE_URL=")) {
-      envVars.DATABASE_URL = "postgresql://username:password@localhost:5432/database_name";
-    }
 
     await updateEnvFile(envVars);
     envSpinner.succeed("Environment variables configured");
@@ -350,9 +391,9 @@ export async function initCommand(options: InitOptions) {
   }
   
   console.log();
-  console.log(chalk.gray("Documentation:"), chalk.underline("https://billing.drew.dev/docs"));
-  console.log(chalk.gray("Diagnostics:"), chalk.cyan("npx @drew/billing doctor"));
-  console.log(chalk.gray("Support:"), chalk.underline("https://github.com/drew/billing/issues"));
+  console.log(chalk.gray("Documentation:"), chalk.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
+  console.log(chalk.gray("Diagnostics:"), chalk.cyan("npx drew-billing-cli doctor"));
+  console.log(chalk.gray("Support:"), chalk.underline("https://github.com/drewsephski/monetize/issues"));
   console.log();
 
   if (products.length > 0 && results.stripeProducts) {
@@ -493,24 +534,29 @@ async function installWithRetry(
   pkgManager: PackageManager, 
   spinner: Ora,
   dev: boolean = false,
-  maxRetries: number = 2
+  maxRetries: number = 2,
+  projectCwd?: string
 ): Promise<void> {
   const installCmd = pkgManager === "npm" ? "install" : "add";
   const devFlag = dev ? (pkgManager === "npm" ? "--save-dev" : "-D") : "";
   const args = [installCmd, ...packages, ...(devFlag ? [devFlag] : [])];
+  const cwd = projectCwd || process.cwd();
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       spinner.text = `Installing dependencies (attempt ${attempt}/${maxRetries})...`;
       
       await execa(pkgManager, args, {
-        cwd: process.cwd(),
+        cwd,
         stdio: "pipe",
         timeout: 120000, // 2 minute timeout
       });
       
       return; // Success
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(chalk.gray(`  Install attempt ${attempt} failed: ${errorMsg.substring(0, 100)}`));
+      
       if (attempt === maxRetries) {
         throw error;
       }

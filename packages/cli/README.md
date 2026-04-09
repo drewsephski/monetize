@@ -29,9 +29,9 @@ npx drew-billing-cli init --template saas
 
 ## Documentation
 
-Full docs at [billing.drew.dev](https://billing.drew.dev)
+Full docs at [github.com/drewsephski/monetize](https://github.com/drewsephski/monetize/tree/main/packages/cli#readme)
 
-Live demo: [billing.drew.dev/try](https://billing.drew.dev/try)
+See the main repo for example apps and detailed setup instructions.
 
 ## License
 

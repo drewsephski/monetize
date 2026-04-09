@@ -1,6 +1,6 @@
 {
   "name": "drew-billing-cli",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "CLI for @drew/billing - Add subscriptions to your app in 10 minutes",
   "type": "module",
   "bin": {

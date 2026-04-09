@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
-import { CreditCard, Loader2 } from "lucide-react";
+import { CreditCard, Loader2, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BillingPortalButtonProps extends Omit<ButtonProps, "onClick"> {
@@ -40,18 +40,23 @@ export function BillingPortalButton({
       variant={variant}
       onClick={handleClick}
       disabled={isLoading}
-      className={cn(className)}
+      className={cn(
+        "h-11 px-4 text-sm font-medium transition-all duration-200 group",
+        variant === "outline" && [
+          "border-[#e7e5e4] bg-white text-[#1c1917]",
+          "hover:border-[#b8860b] hover:bg-[#fafaf9]"
+        ],
+        className
+      )}
       {...props}
     >
       {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading...
-        </>
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <>
-          <CreditCard className="mr-2 h-4 w-4" />
-          {children || "Manage Billing"}
+          <CreditCard className="mr-2 h-4 w-4 text-[#a8a29e] group-hover:text-[#b8860b] transition-colors" />
+          <span>{children || "Manage Billing"}</span>
+          <ArrowUpRight className="ml-2 h-3.5 w-3.5 text-[#a8a29e] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
         </>
       )}
     </Button>

@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, TrendingUp } from "lucide-react";
 
 interface UsageMeterProps {
   userId: string;
@@ -63,53 +62,78 @@ export function UsageMeter({
     return num.toLocaleString();
   };
 
+  // Determine progress bar color based on usage
+  const getProgressColor = () => {
+    if (isOverLimit) return "bg-[#ef4444]";
+    if (isNearLimit) return "bg-[#f59e0b]";
+    if (percentage >= 60) return "bg-[#b8860b]";
+    return "bg-[#22c55e]";
+  };
+
   if (isLoading) {
     return (
-      <div className={cn("space-y-2", className)}>
-        <div className="h-2 bg-muted rounded animate-pulse" />
+      <div className={cn("space-y-3", className)}>
+        <div className="h-2 bg-[#e7e5e4] rounded-full animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label || feature}</span>
-        <span className="text-muted-foreground">
-          {formatNumber(current)} / {formatNumber(limit)}
-        </span>
-      </div>
-
-      <div className="relative">
-        <Progress
-          value={percentage}
-          className={cn(
-            isOverLimit && "bg-destructive",
-            isNearLimit && "bg-amber-500"
-          )}
-        />
-        {(isNearLimit || isOverLimit) && (
-          <div className="absolute -right-1 -top-1">
+    <div
+      className={cn(
+        "rounded-2xl border border-[#e7e5e4] bg-white p-5 transition-all duration-200",
+        isNearLimit && "border-[#f59e0b]/30 bg-[#f59e0b]/5",
+        isOverLimit && "border-[#ef4444]/30 bg-[#ef4444]/5",
+        className
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-[#a8a29e]" />
+          <span className="font-medium text-[#1c1917]">{label || feature}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[#1c1917]">
+            {formatNumber(current)}
+          </span>
+          <span className="text-sm text-[#a8a29e]">/ {formatNumber(limit)}</span>
+          {(isNearLimit || isOverLimit) && (
             <AlertCircle
               className={cn(
                 "h-4 w-4",
-                isOverLimit ? "text-destructive" : "text-amber-500"
+                isOverLimit ? "text-[#ef4444]" : "text-[#f59e0b]"
               )}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {isNearLimit && !isOverLimit && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
-          Approaching limit - consider upgrading
-        </p>
-      )}
-      {isOverLimit && (
-        <p className="text-xs text-destructive">
-          Limit exceeded - upgrade required
-        </p>
-      )}
+      {/* Progress Bar */}
+      <div className="relative h-2 bg-[#e7e5e4] rounded-full overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500 ease-out",
+            getProgressColor()
+          )}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+
+      {/* Footer */}
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-xs text-[#a8a29e]">{percentage.toFixed(0)}% used</span>
+        {isNearLimit && !isOverLimit && (
+          <span className="text-xs font-medium text-[#d97706]">
+            Approaching limit
+          </span>
+        )}
+        {isOverLimit && (
+          <span className="text-xs font-medium text-[#dc2626]">
+            Limit exceeded
+          </span>
+        )}
+      </div>
     </div>
   );
 }

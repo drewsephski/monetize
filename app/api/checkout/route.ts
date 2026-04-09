@@ -10,6 +10,9 @@ const stripe = new Stripe(env.stripeSecretKey, {
   apiVersion: "2026-03-25.dahlia",
 });
 
+// Check if sandbox mode is enabled for better error messages
+const isSandboxMode = env.billingSandboxMode;
+
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   const requestLogger = createRequestLogger(requestId, "/api/checkout");
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const customer = await db.query.customers.findFirst({
+    let customer = await db.query.customers.findFirst({
       where: eq(customers.userId, userId),
     });
 
@@ -37,24 +40,66 @@ export async function POST(req: NextRequest) {
     if (!stripeCustomerId) {
       requestLogger.info("Creating new Stripe customer");
       
-      const stripeCustomer = await stripe.customers.create(
-        {
-          metadata: { userId },
-        },
-        {
-          idempotencyKey: `customer-create-checkout-${userId}`,
-        }
-      );
-      stripeCustomerId = stripeCustomer.id;
+      try {
+        const stripeCustomer = await stripe.customers.create(
+          {
+            metadata: { userId },
+          },
+          {
+            idempotencyKey: `customer-create-checkout-${userId}-${Date.now()}`,
+          }
+        );
+        stripeCustomerId = stripeCustomer.id;
+      } catch (stripeError) {
+        requestLogger.error({ error: stripeError }, "Failed to create Stripe customer");
+        return NextResponse.json(
+          { 
+            error: "Failed to create Stripe customer. Please check your Stripe configuration.",
+            details: stripeError instanceof Error ? stripeError.message : "Unknown Stripe error",
+            sandboxTip: isSandboxMode ? undefined : "Try: BILLING_SANDBOX_MODE=true npm run dev"
+          },
+          { status: 500 }
+        );
+      }
 
       if (!customer) {
-        await db.insert(customers)
-          .values({
-            userId,
-            stripeCustomerId,
-          })
-          .onConflictDoNothing({ target: customers.stripeCustomerId });
-        requestLogger.info({ stripeCustomerId }, "Created customer record");
+        try {
+          // Use returning() to get the inserted row, or null if conflict occurred
+          const [insertedCustomer] = await db.insert(customers)
+            .values({
+              userId,
+              stripeCustomerId,
+            })
+            .onConflictDoNothing({ target: customers.stripeCustomerId })
+            .returning();
+          
+          if (insertedCustomer) {
+            customer = insertedCustomer;
+            requestLogger.info({ stripeCustomerId, customerId: insertedCustomer.id }, "Created customer record");
+          } else {
+            // Conflict occurred - fetch the existing customer
+            const existingCustomer = await db.query.customers.findFirst({
+              where: eq(customers.stripeCustomerId, stripeCustomerId),
+            });
+            
+            if (existingCustomer) {
+              customer = existingCustomer;
+              requestLogger.info({ stripeCustomerId, customerId: existingCustomer.id }, "Using existing customer record");
+            } else {
+              throw new Error("Customer insert conflict but could not fetch existing record");
+            }
+          }
+        } catch (dbError) {
+          requestLogger.error({ error: dbError, userId, stripeCustomerId }, "Database error creating customer record");
+          return NextResponse.json(
+            { 
+              error: "Database error while creating customer record",
+              details: dbError instanceof Error ? dbError.message : "Unknown database error",
+              requestId 
+            },
+            { status: 500 }
+          );
+        }
       }
     }
 
@@ -85,9 +130,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    requestLogger.error({ error: errorMessage }, "Checkout error");
+    requestLogger.error({ error: errorMessage, stack: err instanceof Error ? err.stack : undefined }, "Checkout error");
+    
+    // Provide actionable error messages based on error patterns
+    let userMessage = errorMessage;
+    let sandboxTip: string | undefined;
+    
+    if (errorMessage.includes("STRIPE_SECRET_KEY") || errorMessage.includes("apiKey")) {
+      userMessage = "Stripe API key is invalid or missing";
+      sandboxTip = "Check STRIPE_SECRET_KEY in .env.local or use: BILLING_SANDBOX_MODE=true npm run dev";
+    } else if (errorMessage.includes("network") || errorMessage.includes("ENOTFOUND") || errorMessage.includes("ECONNREFUSED")) {
+      userMessage = "Network error connecting to Stripe";
+      sandboxTip = "Check your internet connection or use: BILLING_SANDBOX_MODE=true npm run dev";
+    } else if (errorMessage.includes("priceId") || errorMessage.includes("price")) {
+      userMessage = "Invalid price ID";
+      sandboxTip = "Check that your Stripe price ID is correct in the dashboard";
+    }
+    
     return NextResponse.json(
-      { error: errorMessage, requestId },
+      { 
+        error: userMessage, 
+        requestId,
+        ...(sandboxTip && { sandboxTip }),
+        ...(isSandboxMode && { sandboxMode: true })
+      },
       { status: 500 }
     );
   }

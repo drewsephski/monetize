@@ -85,14 +85,19 @@ export const auth = betterAuth({
             );
 
             // Create customer record in database with conflict handling
-            await db.insert(customers)
+            const [insertedCustomer] = await db.insert(customers)
               .values({
                 userId: user.id,
                 stripeCustomerId: stripeCustomer.id,
               })
-              .onConflictDoNothing({ target: customers.stripeCustomerId });
+              .onConflictDoNothing({ target: customers.stripeCustomerId })
+              .returning();
 
-            userLogger.info({ stripeCustomerId: stripeCustomer.id }, "Stripe customer created");
+            if (insertedCustomer) {
+              userLogger.info({ stripeCustomerId: stripeCustomer.id, customerId: insertedCustomer.id }, "Stripe customer created");
+            } else {
+              userLogger.info({ stripeCustomerId: stripeCustomer.id }, "Customer already exists, using existing record");
+            }
           } catch (error) {
             userLogger.error({ error }, "Failed to create Stripe customer");
             // Don't throw - we don't want to fail signup if Stripe is down

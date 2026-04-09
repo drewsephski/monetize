@@ -24,6 +24,7 @@ interface EnvConfig {
   betterAuthUrl: string;
   nextPublicApiUrl?: string;
   nextPublicStripePricePro?: string;
+  billingSandboxMode: boolean;
 }
 
 function validateEnv(): EnvConfig {
@@ -68,6 +69,7 @@ function validateEnv(): EnvConfig {
   config.cronSecret = process.env.CRON_SECRET;
   config.nextPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
   config.nextPublicStripePricePro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
+  config.billingSandboxMode = process.env.BILLING_SANDBOX_MODE === "true";
 
   return config as EnvConfig;
 }

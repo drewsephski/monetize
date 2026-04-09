@@ -17,7 +17,7 @@ export default function SignInPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await authClient.signIn.email({
+    const { data, error } = await authClient.signIn.email({
       email,
       password,
       callbackURL: "/dashboard",
@@ -25,9 +25,13 @@ export default function SignInPage() {
 
     if (error) {
       setError(error.message || "Failed to sign in");
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    // Successful sign-in - redirect to dashboard
+    // Use window.location for a hard redirect to ensure middleware picks up the new session
+    window.location.href = "/dashboard";
   };
 
   return (

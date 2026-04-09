@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
@@ -190,6 +191,7 @@ export default function PricingPage() {
       }
     } catch (error) {
       console.error("Failed to fetch subscription:", error);
+      toast.error("Failed to load subscription data");
     }
   };
 

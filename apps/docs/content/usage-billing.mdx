@@ -1,0 +1,243 @@
+# Usage-Based Billing
+
+Bill customers based on their actual usage.
+
+## Overview
+
+Usage-based billing lets you charge for:
+
+- API calls
+- Storage used
+- Compute time
+- Messages sent
+- Any countable metric
+
+## Setup
+
+### 1. Create metered price in Stripe
+
+```bash
+# Or use Stripe Dashboard
+stripe prices create \
+  --product="API Calls" \
+  --unit-amount=1 \
+  --currency=usd \
+  --recurring.interval=month \
+  --recurring.usage-type=metered
+```
+
+### 2. Track usage
+
+```tsx
+import { useTrackUsage } from "@drew/billing-sdk/react";
+
+function ApiRoute() {
+  const { track } = useTrackUsage();
+
+  return async (req: Request) => {
+    // Track the API call
+    await track("api_calls", 1);
+
+    // Process request
+    return Response.json({ result });
+  };
+}
+```
+
+### 3. Display usage
+
+```tsx
+import { UsageMeter } from "@/components/billing/usage-meter";
+
+function Dashboard() {
+  return (
+    <UsageMeter
+      userId="user_123"
+      feature="api_calls"
+      limit={10000}
+      label="API Calls this month"
+      onFetchUsage={async (userId, feature) => {
+        const result = await billing.getUsage({ userId, feature });
+        return result.totalUsage;
+      }}
+    />
+  );
+}
+```
+
+## Tracking Usage
+
+### Automatic tracking
+
+```tsx
+// middleware.ts
+import { trackUsage } from "@drew/billing-sdk/server";
+
+export async function middleware(req: NextRequest) {
+  // Track every API request
+  await trackUsage({
+    userId: getUserId(req),
+    feature: "api_calls",
+    quantity: 1,
+  });
+
+  return NextResponse.next();
+}
+```
+
+### Batch tracking
+
+```tsx
+// Track multiple events
+await Promise.all([
+  billing.trackUsage({ userId, feature: "storage", quantity: 100 }),
+  billing.trackUsage({ userId, feature: "bandwidth", quantity: 1024 }),
+  billing.trackUsage({ userId, feature: "api_calls", quantity: 1 }),
+]);
+```
+
+### With metadata
+
+```tsx
+await billing.trackUsage({
+  userId: "user_123",
+  feature: "compute_time",
+  quantity: 3600, // seconds
+  metadata: {
+    region: "us-east-1",
+    instance_type: "large",
+    job_id: "job_456",
+  },
+});
+```
+
+## Getting Usage Data
+
+### Current period
+
+```tsx
+const usage = await billing.getUsage({
+  userId: "user_123",
+  feature: "api_calls",
+});
+
+console.log(usage.totalUsage); // 5432
+console.log(usage.byFeature.api_calls); // 5432
+```
+
+### Specific date range
+
+```tsx
+const usage = await billing.getUsage({
+  userId: "user_123",
+  feature: "storage",
+  periodStart: "2024-01-01",
+  periodEnd: "2024-01-31",
+});
+
+console.log(usage.dataPoints);
+// [{ timestamp: "2024-01-15T10:30:00Z", quantity: 100, feature: "storage" }]
+```
+
+## Usage Limits
+
+### Soft limits (warnings)
+
+```tsx
+import { UsageMeter } from "@/components/billing/usage-meter";
+
+<UsageMeter
+  userId="user_123"
+  feature="api_calls"
+  limit={10000}
+  // Shows warning at 80%
+/>;
+```
+
+### Hard limits (enforcement)
+
+```tsx
+// API route
+export async function POST(req: Request) {
+  const userId = getUserId(req);
+
+  // Check limit before processing
+  const entitlements = await billing.getEntitlements(userId);
+  const limit = entitlements.limits.api_calls;
+  const usage = await billing.getUsage({ userId, feature: "api_calls" });
+
+  if (usage.totalUsage >= limit) {
+    return Response.json(
+      { error: "API limit exceeded. Please upgrade." },
+      { status: 429 }
+    );
+  }
+
+  // Process and track
+  await billing.trackUsage({ userId, feature: "api_calls", quantity: 1 });
+  return Response.json({ result });
+}
+```
+
+## Pricing Models
+
+### Per-unit pricing
+
+$0.01 per API call:
+
+```yaml
+unit_amount: 1  # cents
+recurring:
+  usage_type: metered
+  aggregate_usage: sum
+```
+
+### Tiered pricing
+
+First 1,000 calls: $0.01/call
+Next 9,000 calls: $0.005/call
+Beyond 10,000: $0.001/call
+
+Configure in Stripe Dashboard.
+
+### Package pricing
+
+Buy API call packages:
+
+- 1,000 calls: $10
+- 10,000 calls: $75
+- 100,000 calls: $500
+
+Use standard subscription prices with quantity.
+
+## Webhook Events
+
+Handle usage-related events:
+
+```tsx
+billingHooks.onUsageThresholdReached(
+  ({ userId, feature, currentUsage, limit }) => {
+    // Send warning email
+    sendEmail(userId, {
+      subject: "Approaching usage limit",
+      body: `You've used ${currentUsage} of ${limit} ${feature}`,
+    });
+  }
+);
+```
+
+## Best Practices
+
+1. **Track immediately**: Don't queue - track at request time
+2. **Handle failures**: Usage tracking shouldn't break your API
+3. **Idempotency**: Use unique event IDs for retries
+4. **Batch when possible**: Reduce API calls to Stripe
+5. **Display clearly**: Users should see their usage
+
+## API Reference
+
+| Method | Description |
+|--------|-------------|
+| `billing.trackUsage()` | Record usage event |
+| `billing.getUsage()` | Get usage history |
+| `billing.getFeatureLimits()` | Get limit for feature |

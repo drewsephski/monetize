@@ -1,0 +1,78 @@
+{
+  "name": "@drew/billing-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for @drew/billing - Add subscriptions and usage billing to your app",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react/index.js",
+      "types": "./dist/react/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
+    },
+    "./sandbox": {
+      "import": "./dist/sandbox/index.js",
+      "types": "./dist/sandbox/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/react/index.ts src/server/index.ts src/sandbox/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts src/react/index.ts src/server/index.ts src/sandbox/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "lint": "eslint src"
+  },
+  "keywords": [
+    "stripe",
+    "billing",
+    "subscriptions",
+    "saas",
+    "payments",
+    "usage-based",
+    "entitlements"
+  ],
+  "author": "Drew",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drew/billing.git",
+    "directory": "packages/sdk"
+  }
+}

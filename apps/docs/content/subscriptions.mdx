@@ -1,0 +1,213 @@
+# Subscriptions
+
+Handle subscription lifecycle with ease.
+
+## Overview
+
+`@drew/billing` provides complete subscription management:
+
+- Checkout sessions
+- Subscription updates
+- Billing portal
+- Trial management
+- Cancellation handling
+
+## Creating Checkout Sessions
+
+### Client-side
+
+```tsx
+import { useCheckout } from "@drew/billing-sdk/react";
+
+function PricingPage() {
+  const { checkout, isLoading } = useCheckout();
+
+  return (
+    <button
+      disabled={isLoading}
+      onClick={() => checkout("price_pro_monthly")}
+    >
+      {isLoading ? "Loading..." : "Subscribe"}
+    </button>
+  );
+}
+```
+
+### Server-side
+
+```tsx
+import { BillingSDK } from "@drew/billing-sdk";
+
+const billing = new BillingSDK({
+  baseUrl: process.env.BILLING_API_URL,
+});
+
+// Create checkout
+const { url } = await billing.createCheckout({
+  priceId: "price_pro_monthly",
+  userId: "user_123",
+  successUrl: "/billing/success",
+  cancelUrl: "/billing/cancel",
+});
+
+// Redirect to checkout
+redirect(url);
+```
+
+## Checking Subscription Status
+
+### React Hook
+
+```tsx
+import { useSubscription } from "@drew/billing-sdk/react";
+
+function MyComponent() {
+  const { hasSubscription, plan, isTrial, trialEndsAt, isLoading } =
+    useSubscription();
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <p>Plan: {plan}</p>
+      <p>Active: {hasSubscription ? "Yes" : "No"}</p>
+      {isTrial && <p>Trial ends: {trialEndsAt}</p>}
+    </div>
+  );
+}
+```
+
+### Direct SDK
+
+```tsx
+const { hasSubscription, subscription } = await billing.getSubscription(
+  "user_123"
+);
+```
+
+## Updating Subscriptions
+
+Let users upgrade/downgrade seamlessly:
+
+```tsx
+import { UpgradeButton } from "@/components/billing/upgrade-button";
+
+function BillingPage() {
+  return (
+    <UpgradeButton
+      userId="user_123"
+      currentPlan="pro"
+      targetPlan="enterprise"
+      onUpgrade={async (target) => {
+        const { url } = await billing.updateSubscription({
+          userId: "user_123",
+          newPriceId: `price_${target}_monthly`,
+        });
+        window.location.href = url;
+      }}
+    />
+  );
+}
+```
+
+## Billing Portal
+
+Give users access to Stripe Customer Portal:
+
+```tsx
+import { BillingPortalButton } from "@/components/billing/billing-portal-button";
+
+function SettingsPage() {
+  return (
+    <BillingPortalButton
+      userId="user_123"
+      onOpenPortal={async (userId, returnUrl) => {
+        const { url } = await billing.getPortalUrl({
+          userId,
+          returnUrl,
+        });
+        return url;
+      }}
+    >
+      Manage Billing
+    </BillingPortalButton>
+  );
+}
+```
+
+## Webhook Handling
+
+Automatically sync subscription changes:
+
+```tsx
+// app/api/webhooks/stripe/route.ts
+import { handleStripeWebhook } from "@drew/billing";
+
+export async function POST(req: Request) {
+  const signature = req.headers.get("stripe-signature");
+  const body = await req.text();
+
+  await handleStripeWebhook(body, signature);
+
+  return Response.json({ received: true });
+}
+```
+
+## Trial Management
+
+### Starting trials
+
+Configure trials in Stripe Dashboard, then:
+
+```tsx
+import { TrialBanner } from "@/components/billing/trial-banner";
+
+function Dashboard() {
+  return (
+    <TrialBanner
+      trialEndsAt="2024-12-31"
+      onUpgrade={() => redirect("/pricing")}
+    />
+  );
+}
+```
+
+### Checking trial status
+
+```tsx
+const isTrial = await billing.isTrialActive("user_123");
+```
+
+## Subscription Events
+
+Listen to subscription changes:
+
+```tsx
+import { billingHooks } from "@drew/billing";
+
+billingHooks.onSubscriptionCreated(({ userId, planId }) => {
+  // Send welcome email
+});
+
+billingHooks.onSubscriptionCanceled(({ userId }) => {
+  // Send retention email
+});
+```
+
+## Best Practices
+
+1. **Always verify server-side**: Client-side checks are for UI only
+2. **Handle webhooks**: Sync subscription state automatically
+3. **Grace periods**: Configure in Stripe for failed payments
+4. **Proration**: Enable for fair billing on plan changes
+
+## API Reference
+
+| Method | Description |
+|--------|-------------|
+| `billing.createCheckout()` | Create checkout session |
+| `billing.getSubscription()` | Get subscription status |
+| `billing.updateSubscription()` | Upgrade/downgrade |
+| `billing.getPortalUrl()` | Get billing portal URL |
+| `billing.hasActiveSubscription()` | Check if subscribed |
+| `billing.isTrialActive()` | Check trial status |

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/retry-stripe-events",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

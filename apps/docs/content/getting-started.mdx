@@ -1,0 +1,142 @@
+# Get Started in 5 Minutes
+
+Add subscriptions to your Next.js app in 5 minutes with `@drew/billing`.
+
+## Quick Start
+
+### 1. Initialize your project
+
+```bash
+npx @drew/billing init
+```
+
+This will:
+- Detect your Next.js setup
+- Create Stripe products
+- Scaffold API routes and components
+- Configure environment variables
+
+### 2. Add the SDK
+
+```bash
+npm install @drew/billing-sdk
+```
+
+### 3. Use the components
+
+```tsx
+import { PricingTable } from "@/components/billing/pricing-table";
+
+export default function PricingPage() {
+  return (
+    <PricingTable
+      plans={[
+        {
+          id: "free",
+          name: "Free",
+          price: 0,
+          currency: "usd",
+          interval: "month",
+          features: ["1,000 API calls", "1 project"],
+          cta: "Get Started",
+        },
+        {
+          id: "pro",
+          name: "Pro",
+          price: 2900,
+          currency: "usd",
+          interval: "month",
+          features: ["10,000 API calls", "Unlimited projects"],
+          cta: "Upgrade to Pro",
+          popular: true,
+        },
+      ]}
+      userId="user_123"
+      onSubscribe={async (planId) => {
+        // Handle subscription
+      }}
+    />
+  );
+}
+```
+
+## SDK Usage
+
+### Check entitlements
+
+```tsx
+import { useEntitlements } from "@drew/billing-sdk/react";
+
+function MyComponent() {
+  const { entitlements, isLoading } = useEntitlements();
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      {entitlements?.hasActiveSubscription ? (
+        <PremiumContent />
+      ) : (
+        <UpgradePrompt />
+      )}
+    </div>
+  );
+}
+```
+
+### Track usage
+
+```tsx
+import { useTrackUsage } from "@drew/billing-sdk/react";
+
+function ApiEndpoint() {
+  const { track } = useTrackUsage();
+
+  const handleRequest = async () => {
+    await track("api_calls", 1);
+    // Process request
+  };
+
+  return <button onClick={handleRequest}>Call API</button>;
+}
+```
+
+### Server-side checks
+
+```tsx
+import { requireSubscription } from "@drew/billing-sdk/server";
+
+export async function GET(req: Request) {
+  const userId = getUserId(req);
+
+  const check = await requireSubscription(
+    { baseUrl: process.env.BILLING_API_URL },
+    userId
+  );
+
+  if (!check.allowed) {
+    return Response.json({ error: check.reason }, { status: 403 });
+  }
+
+  // Handle request
+}
+```
+
+## Environment Variables
+
+```env
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Billing API
+NEXT_PUBLIC_BILLING_API_URL=http://localhost:3000
+```
+
+## Next Steps
+
+- [Subscriptions](/docs/subscriptions)
+- [Usage Billing](/docs/usage)
+- [Entitlements](/docs/entitlements)
+- [API Reference](/docs/api)

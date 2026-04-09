@@ -1,6 +1,6 @@
 /**
  * Doctor command - Self-diagnosis for billing setup
- * Usage: npx @drew/billing doctor
+ * Usage: npx drew-billing-cli doctor
  */
 
 import chalk from "chalk";
@@ -167,7 +167,7 @@ async function checkDatabaseConnection(): Promise<CheckResult> {
         name: "Database Connection",
         status: "fail",
         message: "No Drizzle config found",
-        fix: "Run: npx @drew/billing init to set up database",
+        fix: "Run: npx drew-billing-cli init to set up database",
       };
     }
 

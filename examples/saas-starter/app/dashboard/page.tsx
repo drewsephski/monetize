@@ -12,7 +12,9 @@ import {
   Users,
   Loader2,
   Crown,
+  ArrowUpRight,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface SubscriptionData {
   plan: string;
@@ -238,11 +240,31 @@ export default function DashboardPage() {
                 </Link>
 
                 {subscription?.status === "active" && (
-                  <Link href="/api/billing/portal">
-                    <Button variant="outline" className="w-full">
-                      Manage Billing
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="outline"
+                    className="w-full group"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch("/api/billing/portal", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            userId: "user_demo",
+                            returnUrl: window.location.href,
+                          }),
+                        });
+                        if (!response.ok) throw new Error("Failed to open portal");
+                        const { url } = await response.json();
+                        window.location.href = url;
+                      } catch {
+                        toast.error("Failed to open billing portal");
+                      }
+                    }}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4 text-[#a8a29e] group-hover:text-[#b8860b] transition-colors" />
+                    Manage Billing
+                    <ArrowUpRight className="ml-2 h-3.5 w-3.5 text-[#a8a29e] group-hover:text-[#b8860b] transition-all" />
+                  </Button>
                 )}
               </CardContent>
             </Card>

@@ -310,12 +310,12 @@ export default function HomePage() {
                     Run the diagnostic command to check your setup and get personalized guidance.
                   </p>
                   <button
-                    onClick={() => copyToClipboard("npx @drew/billing doctor")}
+                    onClick={() => copyToClipboard("npx drew-billing-cli doctor")}
                     className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-3 py-2 text-sm font-mono text-[#57534e] hover:border-[#b8860b]/50 transition-all"
                   >
                     <Terminal className="h-3.5 w-3.5 text-[#a8a29e]" />
-                    npx @drew/billing doctor
-                    {copiedCommand === "npx @drew/billing doctor" && (
+                    npx drew-billing-cli doctor
+                    {copiedCommand === "npx drew-billing-cli doctor" && (
                       <CheckCircle2 className="h-3.5 w-3.5 text-[#22c55e] ml-2" />
                     )}
                   </button>

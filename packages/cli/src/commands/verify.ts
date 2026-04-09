@@ -230,7 +230,7 @@ export async function verifyCommand() {
     console.log(chalk.gray("Review the issues above to complete your setup."));
   } else {
     console.log(chalk.red.bold("❌ Setup incomplete"));
-    console.log(chalk.gray("Run: npx @drew/billing init"));
+    console.log(chalk.gray("Run: npx drew-billing-cli init"));
   }
 
   console.log();

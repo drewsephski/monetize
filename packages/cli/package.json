@@ -1,10 +1,10 @@
 {
   "name": "drew-billing-cli",
-  "version": "1.2.2",
-  "description": "CLI for @drew/billing - Add subscriptions to your app in 10 minutes",
+  "version": "1.2.3",
+  "description": "CLI for drew-billing - Add subscriptions to your app in 10 minutes",
   "type": "module",
   "bin": {
-    "billing": "./dist/index.js"
+    "billing": "dist/index.js"
   },
   "main": "./dist/index.js",
   "exports": {

@@ -80,6 +80,6 @@ export async function sandboxCommand(options: SandboxOptions) {
 
   console.log();
   console.log(chalk.gray("Switch back anytime:"));
-  console.log(chalk.cyan(`  npx @drew/billing sandbox`));
+  console.log(chalk.cyan(`  npx drew-billing-cli sandbox`));
   console.log();
 }

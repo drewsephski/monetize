@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   CreditCard,
   Settings,
@@ -22,6 +23,7 @@ type SubscriptionData = {
     id: string;
     status: string;
     planId: string | null;
+    stripePriceId: string | null;
     planName: string | null;
     currentPeriodEnd: string | null;
   } | null;
@@ -42,7 +44,7 @@ export default function DashboardClient() {
     }
   }, [session]);
 
-  // Single refresh when returning from successful checkout
+  // Single refresh when returning from successful checkout + auto-dismiss banner
   useEffect(() => {
     if (success && session) {
       // Wait 3 seconds for webhook to process, then refresh once
@@ -50,9 +52,17 @@ export default function DashboardClient() {
         fetchSubscription();
       }, 3000);
 
-      return () => clearTimeout(timeout);
+      // Auto-dismiss success banner after 5 seconds
+      const dismissTimeout = setTimeout(() => {
+        router.replace("/dashboard"); // Clear ?success=true from URL
+      }, 5000);
+
+      return () => {
+        clearTimeout(timeout);
+        clearTimeout(dismissTimeout);
+      };
     }
-  }, [success, session]);
+  }, [success, session, router]);
 
   const fetchSubscription = async () => {
     setLoadingSubscription(true);
@@ -67,6 +77,7 @@ export default function DashboardClient() {
       }
     } catch (error) {
       console.error("Failed to fetch subscription:", error);
+      toast.error("Failed to load subscription data. Please try again.");
     } finally {
       setLoadingSubscription(false);
     }
@@ -94,6 +105,7 @@ export default function DashboardClient() {
       }
     } catch (error) {
       console.error("Failed to open portal:", error);
+      toast.error("Failed to open billing portal. Please try again.");
     }
   };
 

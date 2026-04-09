@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface TrialBannerProps {
   trialEndsAt: string;
-  onUpgrade: () => void;
+  onUpgrade: () => Promise<void> | void;
   onDismiss?: () => void;
   className?: string;
 }
@@ -19,6 +19,16 @@ export function TrialBanner({
   className,
 }: TrialBannerProps) {
   const [dismissed, setDismissed] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    try {
+      await onUpgrade();
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
 
   const endDate = new Date(trialEndsAt);
   const now = new Date();
@@ -85,7 +95,8 @@ export function TrialBanner({
         <div className="flex items-center gap-3 sm:shrink-0">
           <Button
             size="sm"
-            onClick={onUpgrade}
+            onClick={handleUpgrade}
+            loading={isUpgrading}
             className={cn(
               "h-9 px-4 text-sm font-medium transition-all duration-200 group",
               isUrgent

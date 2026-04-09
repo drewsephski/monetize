@@ -31,6 +31,7 @@ const defaultPriceId = isSandboxMode ? "price_test" : (process.env.NEXT_PUBLIC_S
 export default function DemoPage() {
   const { data: session } = authClient.useSession()
   const [userId, setUserId] = useState(() => crypto.randomUUID())
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const [priceId, setPriceId] = useState(defaultPriceId)
   const [loading, setLoading] = useState<string | null>(null)
   const [result, setResult] = useState<string>("")
@@ -174,12 +175,18 @@ export default function DemoPage() {
                   <User className="h-4 w-4 text-[#78716c]" />
                   <span className="max-w-[150px] truncate">{session.user.email}</span>
                 </div>
-                <button
-                  onClick={() => authClient.signOut()}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+                <Button
+                  onClick={async () => {
+                    setIsSigningOut(true);
+                    await authClient.signOut();
+                  }}
+                  loading={isSigningOut}
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#78716c] hover:text-[#1c1917]"
                 >
                   Sign out
-                </button>
+                </Button>
               </div>
             ) : (
               <Link href="/signin">

@@ -49,19 +49,26 @@ export default function TryPage() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [step, setStep] = useState<"pricing" | "checkout" | "processing" | "success">("pricing")
   const [email, setEmail] = useState("")
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSelectPlan = (planId: string) => {
+  const handleSelectPlan = async (planId: string) => {
+    setLoadingPlan(planId)
+    // Simulate brief loading for UX feedback
+    await new Promise(resolve => setTimeout(resolve, 300))
     setSelectedPlan(planId)
     setStep("checkout")
+    setLoadingPlan(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
     setStep("processing")
     // Simulate processing
-    setTimeout(() => {
-      setStep("success")
-    }, 2000)
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    setStep("success")
+    setIsSubmitting(false)
   }
 
   const selectedPlanData = PRICES.find((p) => p.id === selectedPlan)
@@ -207,6 +214,7 @@ export default function TryPage() {
                   </ul>
                   <Button
                     onClick={() => handleSelectPlan(price.id)}
+                    loading={loadingPlan === price.id}
                     className={`w-full ${
                       price.popular
                         ? "bg-[#b8860b] text-white hover:bg-[#8b6914]"
@@ -304,6 +312,7 @@ export default function TryPage() {
 
                   <Button
                     type="submit"
+                    loading={isSubmitting}
                     className="w-full bg-[#b8860b] py-6 text-base font-medium text-white hover:bg-[#8b6914]"
                   >
                     Complete Purchase

@@ -37,6 +37,8 @@ export default function DashboardClient() {
   const { data: session, isPending } = useSession();
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
+  const [loadingSignOut, setLoadingSignOut] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -84,12 +86,14 @@ export default function DashboardClient() {
   };
 
   const handleSignOut = async () => {
+    setLoadingSignOut(true);
     await signOut();
     router.push("/");
   };
 
   const openCustomerPortal = async () => {
     if (!session) return;
+    setLoadingPortal(true);
     try {
       const response = await fetch("/api/customer-portal", {
         method: "POST",
@@ -106,6 +110,8 @@ export default function DashboardClient() {
     } catch (error) {
       console.error("Failed to open portal:", error);
       toast.error("Failed to open billing portal. Please try again.");
+    } finally {
+      setLoadingPortal(false);
     }
   };
 
@@ -162,12 +168,14 @@ export default function DashboardClient() {
               <User className="h-4 w-4 text-[#78716c]" />
               <span className="max-w-[150px] truncate">{session.user.email}</span>
             </div>
-            <button
+            <Button
               onClick={handleSignOut}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+              loading={loadingSignOut}
+              variant="ghost"
+              className="text-[#78716c] hover:text-[#1c1917]"
             >
               Sign out
-            </button>
+            </Button>
           </div>
         </div>
       </nav>
@@ -243,19 +251,23 @@ export default function DashboardClient() {
               {!loadingSubscription && (
                 subscriptionData?.hasSubscription ? (
                   <div className="flex gap-2">
-                    <button
+                    <Button
                       onClick={openCustomerPortal}
-                      className="flex-1 rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+                      loading={loadingPortal}
+                      variant="outline"
+                      className="flex-1 border-[#e7e5e4] bg-white text-[#57534e] hover:bg-[#f5f5f4] hover:text-[#1c1917]"
                     >
                       Manage Subscription
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={fetchSubscription}
-                      disabled={loadingSubscription}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e7e5e4] bg-white text-[#57534e] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917] disabled:opacity-50"
+                      loading={loadingSubscription}
+                      variant="outline"
+                      size="icon"
+                      className="border-[#e7e5e4] bg-white text-[#57534e] hover:bg-[#f5f5f4] hover:text-[#1c1917]"
                     >
-                      <RefreshCw className={`h-4 w-4 ${loadingSubscription ? "animate-spin" : ""}`} />
-                    </button>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
                   </div>
                 ) : (
                   <Link href="/pricing" className="block">
@@ -278,12 +290,14 @@ export default function DashboardClient() {
             <p className="mb-4 text-sm text-[#78716c]">
               Payment methods, invoices, and history
             </p>
-            <button
+            <Button
               onClick={openCustomerPortal}
-              className="w-full rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+              loading={loadingPortal}
+              variant="outline"
+              className="w-full border-[#e7e5e4] bg-white text-[#57534e] hover:bg-[#f5f5f4] hover:text-[#1c1917]"
             >
               Billing Portal
-            </button>
+            </Button>
           </div>
 
           {/* Account Info */}

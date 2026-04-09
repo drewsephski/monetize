@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Lock, Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,7 @@ interface SubscriptionGateProps {
   isLoading?: boolean;
   requiredPlan?: string;
   children: React.ReactNode;
-  onUpgrade?: () => void;
+  onUpgrade?: () => Promise<void> | void;
 }
 
 export function SubscriptionGate({
@@ -19,6 +20,18 @@ export function SubscriptionGate({
   children,
   onUpgrade,
 }: SubscriptionGateProps) {
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const handleUpgrade = async () => {
+    if (!onUpgrade) return;
+    setIsUpgrading(true);
+    try {
+      await onUpgrade();
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-8">
@@ -57,7 +70,8 @@ export function SubscriptionGate({
         {/* CTA */}
         <div className="mt-6 flex flex-col items-center gap-3">
           <Button
-            onClick={onUpgrade}
+            onClick={handleUpgrade}
+            loading={isUpgrading}
             className={cn(
               "h-11 px-6 text-sm font-medium transition-all duration-200 group",
               "bg-[#1c1917] text-white hover:bg-[#292524]"

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UpgradeButtonProps extends Omit<ButtonProps, "onClick"> {
@@ -14,7 +14,6 @@ interface UpgradeButtonProps extends Omit<ButtonProps, "onClick"> {
 }
 
 export function UpgradeButton({
-  userId,
   currentPlan,
   targetPlan,
   onUpgrade,
@@ -24,6 +23,7 @@ export function UpgradeButton({
   variant = "default",
   ...props
 }: UpgradeButtonProps) {
+  // Note: userId is available in props for parent tracking/analytics
   const [isLoading, setIsLoading] = useState(false);
 
   const isCurrent = currentPlan === targetPlan;
@@ -41,27 +41,45 @@ export function UpgradeButton({
 
   if (isCurrent && showCurrentLabel) {
     return (
-      <Button disabled variant="outline" className={cn("opacity-60", className)} {...props}>
+      <Button
+        disabled
+        variant="outline"
+        className={cn(
+          "h-11 px-4 border-[#e7e5e4] bg-[#fafaf9] text-[#a8a29e] cursor-not-allowed",
+          className
+        )}
+        {...props}
+      >
+        <Sparkles className="mr-2 h-4 w-4" />
         Current Plan
       </Button>
     );
   }
+
+  const targetPlanLabel = targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1);
 
   return (
     <Button
       variant={variant}
       disabled={isLoading || isCurrent}
       onClick={handleUpgrade}
-      className={className}
+      className={cn(
+        "h-11 px-4 text-sm font-medium transition-all duration-200 group",
+        variant === "default" && [
+          "bg-[#1c1917] text-white hover:bg-[#292524]",
+        ],
+        className
+      )}
       {...props}
     >
       {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading...
-        </>
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        children || `Upgrade to ${targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1)}`
+        <>
+          <Sparkles className="mr-2 h-4 w-4 text-[#b8860b]" />
+          <span>{children || `Upgrade to ${targetPlanLabel}`}</span>
+          <ArrowRight className="ml-2 h-3.5 w-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+        </>
       )}
     </Button>
   );

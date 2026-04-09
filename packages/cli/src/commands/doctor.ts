@@ -261,7 +261,7 @@ async function checkDependencies(): Promise<CheckResult> {
     const pkg = JSON.parse(readFileSync(packagePath, "utf-8"));
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     
-    const required = ["@drew/billing-sdk", "stripe"];
+    const required = ["stripe", "drizzle-orm"];
     const missing = required.filter(d => !deps[d]);
 
     if (missing.length === 0) {
@@ -341,6 +341,6 @@ function displayResults(checks: CheckResult[]) {
     console.log(chalk.yellow("\n⚠️  Some warnings - review above.\n"));
   } else {
     console.log(chalk.red(`\n❌ ${failed} issue(s) need attention. Run the suggested fixes above.\n`));
-    console.log(chalk.gray("Need help? https://billing.drew.dev/docs/troubleshooting\n"));
+    console.log(chalk.gray("Need help? https://github.com/drewsephski/monetize/issues\n"));
   }
 }

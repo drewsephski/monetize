@@ -2,7 +2,6 @@ import chalk from "chalk";
 import ora from "ora";
 import fs from "fs-extra";
 import path from "path";
-import { BillingSDK } from "@drew/billing-sdk";
 
 interface CheckResult {
   name: string;
@@ -53,7 +52,7 @@ export async function verifyCommand() {
         envSpinner.succeed();
       }
     }
-  } catch (error) {
+  } catch {
     results.push({
       name: "Environment Variables",
       status: "fail",
@@ -67,7 +66,7 @@ export async function verifyCommand() {
   try {
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: "2024-12-18.acacia",
+      apiVersion: "2023-10-16",
     });
 
     const account = await stripe.accounts.retrieve();
@@ -77,7 +76,7 @@ export async function verifyCommand() {
       message: `Connected to ${account.settings?.dashboard?.display_name || "Stripe account"}`,
     });
     stripeSpinner.succeed();
-  } catch (error) {
+  } catch {
     results.push({
       name: "Stripe API",
       status: "fail",
@@ -112,7 +111,7 @@ export async function verifyCommand() {
       });
       dbSpinner.warn();
     }
-  } catch (error) {
+  } catch {
     results.push({
       name: "Database Setup",
       status: "warn",
@@ -155,7 +154,7 @@ export async function verifyCommand() {
       });
       apiSpinner.succeed();
     }
-  } catch (error) {
+  } catch {
     results.push({
       name: "API Routes",
       status: "warn",
@@ -168,26 +167,27 @@ export async function verifyCommand() {
   const sdkSpinner = ora("Checking SDK...").start();
   try {
     const packageJson = await fs.readJson(path.join(process.cwd(), "package.json"));
-    const hasSdk =
-      packageJson.dependencies?.["@drew/billing-sdk"] ||
-      packageJson.devDependencies?.["@drew/billing-sdk"];
+    // Check for stripe SDK (required for billing)
+    const hasStripe =
+      packageJson.dependencies?.["stripe"] ||
+      packageJson.devDependencies?.["stripe"];
 
-    if (hasSdk) {
+    if (hasStripe) {
       results.push({
-        name: "SDK Installation",
+        name: "Stripe SDK",
         status: "pass",
-        message: "@drew/billing-sdk installed",
+        message: "stripe SDK installed",
       });
       sdkSpinner.succeed();
     } else {
       results.push({
-        name: "SDK Installation",
+        name: "Stripe SDK",
         status: "fail",
-        message: "SDK not found in dependencies",
+        message: "Stripe SDK not found in dependencies",
       });
       sdkSpinner.fail();
     }
-  } catch (error) {
+  } catch {
     results.push({
       name: "SDK Installation",
       status: "fail",
@@ -201,7 +201,6 @@ export async function verifyCommand() {
 
   const passed = results.filter((r) => r.status === "pass").length;
   const failed = results.filter((r) => r.status === "fail").length;
-  const warnings = results.filter((r) => r.status === "warn").length;
 
   results.forEach((result) => {
     const icon =
@@ -238,6 +237,6 @@ export async function verifyCommand() {
   console.log(chalk.gray("Next steps:"));
   console.log(chalk.gray("  • Start dev server: npm run dev"));
   console.log(chalk.gray("  • Start webhook listener: stripe listen --forward-to localhost:3000/api/webhooks/stripe"));
-  console.log(chalk.gray("  • View docs: https://billing.drew.dev/docs"));
+  console.log(chalk.gray("  • View docs: https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
   console.log();
 }

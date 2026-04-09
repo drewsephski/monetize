@@ -112,7 +112,7 @@ export async function addCommand(component: string, options: AddOptions) {
     console.log(chalk.cyan(`import { ${componentInfo.name} } from "${installPath}/${component.replace("billing-portal", "billing-portal-button")}";`));
   }
   console.log();
-  console.log(chalk.gray("Documentation:"), chalk.underline("https://billing.drew.dev/docs/components"));
+  console.log(chalk.gray("Documentation:"), chalk.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
   console.log();
 }
 

@@ -47,7 +47,7 @@ const HOSTED_PLANS = [
     description: "For growing teams",
     price: 29,
     interval: "month",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKNcWRZE8Whwvf0lLV0ckmi",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKOSiRZE8Whwvf0DwqOcFUk",
     features: [
       "Up to 10,000 customers",
       "Hosted billing dashboard",
@@ -156,7 +156,7 @@ type SubscriptionData = {
 };
 
 const PLAN_PRICE_MAP: Record<string, string> = {
-  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKNcWRZE8Whwvf0lLV0ckmi",
+  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKOSiRZE8Whwvf0DwqOcFUk",
   growth: process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH || "price_1TKNcXRZE8Whwvf0LPFCoLvn",
 };
 

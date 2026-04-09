@@ -5,11 +5,7 @@ import { db } from "./db";
 import { users, sessions, accounts, verifications, customers } from "@/drizzle/schema";
 import { env } from "./env";
 import { logger } from "./logger";
-import Stripe from "stripe";
-
-const stripe = new Stripe(env.stripeSecretKey, {
-  apiVersion: "2026-03-25.dahlia",
-});
+import { getStripe } from "./billing/stripe";
 
 export const auth = betterAuth({
   baseURL: env.betterAuthUrl,
@@ -75,7 +71,7 @@ export const auth = betterAuth({
             }
 
             // Create Stripe customer with idempotency key
-            const stripeCustomer = await stripe.customers.create(
+            const stripeCustomer = await getStripe().customers.create(
               {
                 email: user.email,
                 name: user.name || undefined,

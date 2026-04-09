@@ -11,8 +11,8 @@ const createSchema = z.object({
   stripeSubscriptionId: z.string().optional(),
   expiresAt: z.string().datetime().optional(), // ISO date string
   features: z.array(z.string()).optional(),
-  usageLimits: z.record(z.number()).optional(),
-  metadata: z.record(z.any()).optional(),
+  usageLimits: z.record(z.string(), z.number()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 // Generate a secure license key

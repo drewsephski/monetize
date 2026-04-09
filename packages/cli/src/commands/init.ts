@@ -7,7 +7,7 @@ import { execa } from "execa";
 import type { Ora } from "ora";
 import { detectFramework } from "../utils/detect.js";
 import { createStripeProducts } from "../utils/stripe.js";
-import { installTemplates } from "../utils/templates.js";
+import { getTemplateLabel, installTemplates, normalizeTemplate } from "../utils/templates.js";
 import { updateEnvFile } from "../utils/env.js";
 import { detectPackageManager, type PackageManager } from "../utils/package-manager.js";
 import { trackTiming, trackFunnel, FunnelStage } from "../utils/telemetry.js";
@@ -47,9 +47,6 @@ export async function initCommand(options: InitOptions) {
   const cwd = process.cwd();
   const isEmptyDir = await isDirectoryEmpty(cwd);
   const hasPackageJson = await fs.pathExists(path.join(cwd, "package.json"));
-
-  // Debug logging
-  console.log(chalk.gray(`Debug: cwd=${cwd}, isEmptyDir=${isEmptyDir}, hasPackageJson=${hasPackageJson}`));
 
   let pkgManager: PackageManager = "npm";
   let projectName = path.basename(cwd);
@@ -187,9 +184,9 @@ export async function initCommand(options: InitOptions) {
         name: "template",
         message: "Choose your template:",
         choices: [
-          { name: "SaaS Starter (pricing page + auth + dashboard)", value: "saas" },
+          { name: "SaaS Starter (overview + pricing + dashboard)", value: "saas" },
           { name: "API Billing (usage-based pricing)", value: "api" },
-          { name: "Simple Usage (metered billing)", value: "usage" },
+          { name: "AI Credits / Usage (credits + top-ups + dashboard)", value: "usage" },
           { name: "Minimal (just the SDK)", value: "minimal" },
         ],
         default: options.template || "saas",
@@ -258,48 +255,6 @@ export async function initCommand(options: InitOptions) {
   } catch {
     devDepsSpinner.warn("Some dev dependencies may need manual installation");
   }
-
-  // 1d. Install shadcn/ui components
-  const shadcnSpinner = ora("Installing UI components...").start();
-  try {
-    // Install shadcn/ui base components needed by the billing components
-    const shadcnComponents = ["button", "card", "progress"];
-    for (const component of shadcnComponents) {
-      shadcnSpinner.text = `Installing shadcn/ui ${component}...`;
-      try {
-        await execa("npx", ["shadcn@latest", "add", component, "-y"], {
-          cwd,
-          stdio: "pipe",
-          timeout: 60000,
-        });
-      } catch {
-        // Component might already exist or shadcn might not be initialized
-        // Continue with other components
-      }
-    }
-    shadcnSpinner.succeed("UI components installed");
-  } catch {
-    shadcnSpinner.warn("Some UI components may need manual installation");
-    console.log(chalk.gray(`Run manually: npx shadcn@latest add button card progress`));
-  }
-
-  // 1e. Install sonner for toast notifications
-  const sonnerSpinner = ora("Installing toast notifications...").start();
-  try {
-    await execa(pkgManager, [pkgManager === "npm" ? "install" : "add", "sonner"], {
-      cwd,
-      stdio: "pipe",
-      timeout: 60000,
-    });
-    sonnerSpinner.succeed("Toast notifications installed");
-  } catch {
-    sonnerSpinner.warn("sonner may need manual installation");
-    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} sonner`));
-  }
-
-  // 1f. Note about SDK
-  console.log(chalk.gray("\nTip: Install the SDK for programmatic access:"));
-  console.log(chalk.cyan(`  ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} @drew/billing-sdk\n`));
 
   // 2. Create Stripe products (with better error handling)
   let products: Array<{ id: string; name: string; priceId: string }> = [];
@@ -396,43 +351,18 @@ export async function initCommand(options: InitOptions) {
   });
   trackTiming("init_complete", initDuration);
 
-  // Summary
-  console.log(chalk.green.bold("\n✅ Setup complete!\n"));
-
-  // Show any errors
-  if (errors.length > 0) {
-    console.log(chalk.yellow("⚠️  Some steps failed:"));
-    errors.forEach(err => console.log(chalk.gray(`  • ${err}`)));
-    console.log();
-  }
-
-  // Show project-specific next steps
-  console.log(chalk.white("Next steps:\n"));
-  
-  if (results.projectScaffolded) {
-    console.log(chalk.gray("1."), "Navigate to your project:", chalk.cyan(`cd ${projectName}`));
-    console.log(chalk.gray("2."), "Start your dev server:", chalk.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
-    console.log(chalk.gray("3."), "Start Stripe webhook listener:", chalk.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
-  } else {
-    console.log(chalk.gray("1."), "Start your dev server:", chalk.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
-    console.log(chalk.gray("2."), "Start Stripe webhook listener:", chalk.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
-  }
-  
-  if (results.templates) {
-    const stepNum = results.projectScaffolded ? "4" : "3";
-    console.log(chalk.gray(`${stepNum}.`), "Visit", chalk.cyan("http://localhost:3000/pricing"));
-  }
-  
-  if (!results.database) {
-    console.log(chalk.gray("\n⚠️  Database not configured. Add DATABASE_URL to .env.local and run:"));
-    console.log(chalk.gray("   npx drizzle-kit push"));
-  }
-  
-  console.log();
-  console.log(chalk.gray("Documentation:"), chalk.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
-  console.log(chalk.gray("Diagnostics:"), chalk.cyan("npx drew-billing-cli doctor"));
-  console.log(chalk.gray("Support:"), chalk.underline("https://github.com/drewsephski/monetize/issues"));
-  console.log();
+  const templateLabel =
+    config.template === "minimal" ? "Minimal SDK" : getTemplateLabel(normalizeTemplate(config.template));
+  printSuccessPanel({
+    errors,
+    pkgManager,
+    projectName,
+    projectScaffolded: results.projectScaffolded,
+    templateLabel,
+    templateKey: config.template,
+    dependenciesReady: results.dependencies,
+    sandboxReady: results.templates,
+  });
 
   if (products.length > 0 && results.stripeProducts) {
     console.log(chalk.gray("Created Stripe products:"));
@@ -460,6 +390,120 @@ export async function initCommand(options: InitOptions) {
     durationMs: initDuration,
     results,
   });
+}
+
+function printSuccessPanel({
+  errors,
+  pkgManager,
+  projectName,
+  projectScaffolded,
+  templateLabel,
+  templateKey,
+  dependenciesReady,
+  sandboxReady,
+}: {
+  errors: string[];
+  pkgManager: PackageManager;
+  projectName: string;
+  projectScaffolded: boolean;
+  templateLabel: string;
+  templateKey: string;
+  dependenciesReady: boolean;
+  sandboxReady: boolean;
+}) {
+  const sandboxCommand = getRunScriptCommand(pkgManager, "billing:sandbox");
+  const installCommand = getInstallCommand(pkgManager);
+  const localUrls = getLocalUrls(templateKey);
+  const nextSteps: string[] = [];
+
+  if (projectScaffolded) {
+    nextSteps.push(`cd ${projectName}`);
+  }
+
+  if (!dependenciesReady) {
+    nextSteps.push(installCommand);
+  }
+
+  nextSteps.push(sandboxCommand);
+
+  const line = (label: string, value: string) =>
+    `${chalk.gray(label.padEnd(20))}${chalk.white(value)}`;
+
+  console.log(chalk.green.bold("\n◆ Setup Complete\n"));
+  console.log(line("Created", templateLabel));
+  console.log(line("Template key", templateKey));
+  console.log(line("Package manager", pkgManager));
+  console.log(line("Dependencies", dependenciesReady ? "Installed" : `Needs manual step (${installCommand})`));
+  console.log(line("Sandbox mode", sandboxReady ? "Ready" : "Template install incomplete"));
+  console.log(line("First action", "Open /pricing and complete checkout"));
+
+  console.log(chalk.white("\nNext steps"));
+  nextSteps.forEach((step, index) => {
+    console.log(chalk.gray(`${index + 1}.`), chalk.cyan(step));
+  });
+
+  console.log(chalk.white("\nLocal URLs"));
+  Object.entries(localUrls).forEach(([label, url]) => {
+    console.log(chalk.gray(`- ${label}:`), chalk.cyan(url));
+  });
+
+  if (errors.length > 0) {
+    console.log(chalk.yellow("\nWarnings"));
+    errors.forEach((error) => {
+      console.log(chalk.gray(`- ${error}`));
+    });
+  }
+
+  console.log();
+  console.log(chalk.gray("Docs:"), chalk.underline("https://billing.drew.dev/docs"));
+  console.log(chalk.gray("Diagnostics:"), chalk.cyan("npx drew-billing-cli doctor"));
+  console.log(chalk.gray("Support:"), chalk.underline("https://github.com/drewsephski/monetize/issues"));
+  console.log();
+}
+
+function getInstallCommand(pkgManager: PackageManager) {
+  switch (pkgManager) {
+    case "bun":
+      return "bun install";
+    case "pnpm":
+      return "pnpm install";
+    case "yarn":
+      return "yarn install";
+    default:
+      return "npm install";
+  }
+}
+
+function getRunScriptCommand(pkgManager: PackageManager, script: string) {
+  switch (pkgManager) {
+    case "bun":
+      return `bun run ${script}`;
+    case "pnpm":
+      return `pnpm ${script}`;
+    case "yarn":
+      return `yarn ${script}`;
+    default:
+      return `npm run ${script}`;
+  }
+}
+
+function getLocalUrls(templateKey: string) {
+  const urls: Record<string, string> = {
+    App: "http://localhost:3000",
+    Pricing: "http://localhost:3000/pricing",
+    Dashboard: "http://localhost:3000/dashboard",
+  };
+
+  if (templateKey === "api") {
+    urls["API Keys"] = "http://localhost:3000/api-keys";
+    urls["Usage"] = "http://localhost:3000/usage";
+  }
+
+  if (templateKey === "usage" || templateKey === "ai-credits") {
+    urls["Usage"] = "http://localhost:3000/usage";
+  }
+
+  return urls;
 }
 
 // Helper: Check if directory is empty

@@ -1,31 +1,27 @@
 {
   "name": "api-product-example",
   "version": "1.0.0",
-  "description": "API Product Starter - Usage-based billing with API keys and rate limiting",
+  "description": "Polished API billing example with checkout, API keys, protected routes, and usage views",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "billing:sandbox": "BILLING_SANDBOX_MODE=true npm run dev"
+    "billing:sandbox": "BILLING_SANDBOX_MODE=true NEXT_PUBLIC_BILLING_SANDBOX_MODE=true next dev --turbopack"
   },
   "dependencies": {
-    "@drew/billing-sdk": "latest",
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "stripe": "^14.0.0",
-    "lucide-react": "^0.400.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^2.0.0"
+    "lucide-react": "^0.542.0",
+    "next": "16.1.7",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "autoprefixer": "^10.0.0",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "postcss": "^8.0.0",
-    "tailwindcss": "^4.0.0",
+    "tailwindcss": "^4.2.1",
     "typescript": "^5.0.0"
   }
 }

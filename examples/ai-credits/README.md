@@ -1,48 +1,37 @@
-# AI Credits App
+# AI Credits
 
-A credit-based AI application with usage billing and hard paywalls.
+A polished AI credits billing example with:
 
-## Features
-
-- **Credit System** - Pre-purchase credits that are consumed per AI generation
-- **Hard Paywall** - Block access when credits run out
-- **Top-up Flow** - Easy credit purchasing when low
-- **Real-time Balance** - Live credit counter in UI
-- **Usage Analytics** - Track credit consumption
-- **Sandbox Mode** - Test without real charges
+- `/` overview
+- `/pricing` recurring plans + top-up packs
+- `/dashboard` credit balance and account state
+- `/usage` generation + low-balance + top-up loop
 
 ## Quick Start
 
 ```bash
 cd examples/ai-credits
-npm install
-npm run billing:sandbox
+bun install
+bun run billing:sandbox
 ```
 
-## How It Works
+Then open:
 
-1. User buys credits (e.g., 100 credits for $10)
-2. Each AI generation costs 1-10 credits based on complexity
-3. Credits are deducted in real-time
-4. When credits < 10, show top-up prompt
-5. When credits = 0, show paywall with buy button
+- `http://localhost:3000/`
+- `http://localhost:3000/pricing`
+- `http://localhost:3000/dashboard`
+- `http://localhost:3000/usage`
 
-## Pricing
+## What To Test
 
-- 100 credits - $10
-- 500 credits - $40 (20% off)
-- 2000 credits - $120 (40% off)
+1. Open `/pricing`
+2. Trigger the Studio checkout
+3. Visit `/usage`
+4. Spend credits until the warning appears
+5. Trigger a top-up and confirm the dashboard updates
 
-## Sandbox Mode
+## Notes
 
-Test the full flow without Stripe:
-
-```bash
-npm run billing:sandbox
-```
-
-Test paywall by simulating zero credits, test purchasing, etc.
-
-## Deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/drew/billing/tree/main/examples/ai-credits)
+- Sandbox mode is the default first-run experience
+- The example is synced from `packages/cli/templates/usage`
+- Docs link points to the shared central docs destination

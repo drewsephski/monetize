@@ -1,38 +1,27 @@
 # drew-billing-cli
 
-CLI for adding subscriptions to your Next.js app in 10 minutes.
+CLI for scaffolding a polished billing onboarding flow into a Next.js app.
 
 ```bash
 npx drew-billing-cli init
 ```
 
-## What it does
-
-1. **Scaffolds a new Next.js project** (in empty directories) using `create-next-app`
-2. Detects your framework (Next.js, React, etc.)
-3. Creates Stripe products and prices
-4. Sets up database schema
-5. Installs billing components and templates
-6. Configures environment variables
-7. Tracks setup progress with telemetry
-
 ## Templates
 
-- `saas` — Complete SaaS with pricing page, dashboard, customer portal
-- `api` — Usage-based billing for APIs
-- `ai-credits` — Credit system for AI apps
-- `minimal` — Just the core SDK
+- `saas` — overview, pricing, dashboard
+- `api` — overview, pricing, dashboard, API keys, usage
+- `usage` / `ai-credits` — overview, pricing, dashboard, usage
+- `minimal` — core setup only
 
-```bash
-npx drew-billing-cli init --template saas
-```
+## Goal
 
-## Documentation
+After `init`, a developer should be able to:
 
-Full docs at [github.com/drewsephski/monetize](https://github.com/drewsephski/monetize/tree/main/packages/cli#readme)
+1. run the app in sandbox mode
+2. understand what the product demonstrates immediately
+3. complete a billing flow in minutes
 
-See the main repo for example apps and detailed setup instructions.
+## Docs
 
-## License
-
-MIT
+- [Central docs](https://billing.drew.dev/docs)
+- [Repository](https://github.com/drewsephski/monetize)

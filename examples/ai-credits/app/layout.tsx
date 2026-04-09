@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "@/app/globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Credits - Usage-Based Billing Example",
-  description: "Credit-based AI app with usage billing, built with @drew/billing",
+  title: "AI Credits",
+  description: "AI credits billing example with top-up flow, entitlements, and sandbox checkout.",
 };
 
 export default function RootLayout({
@@ -13,7 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="font-sans text-[color:var(--ink-1)]">
+        {children}
+      </body>
     </html>
   );
 }

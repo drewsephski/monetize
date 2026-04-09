@@ -21,7 +21,7 @@ program
   .command("init")
   .description("Initialize @drew/billing in your Next.js project")
   .option("--skip-stripe", "Skip Stripe product creation")
-  .option("--template <type>", "Template type (saas, api, usage)", "saas")
+  .option("--template <type>", "Template type (saas, api, usage, ai-credits)", "saas")
   .option("--yes", "Skip prompts and use defaults")
   .action(initCommand);
 

@@ -1,24 +1,32 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 import * as schema from "@/drizzle/schema";
-import { env } from "./env";
 
-let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
-let poolInstance: Pool | null = null;
+// Configure WebSocket for Node.js environments (< v22)
+// This is required for the Pool to work with interactive transactions
+neonConfig.webSocketConstructor = ws;
 
-function getPool() {
-  if (!poolInstance) {
-    poolInstance = new Pool({
-      connectionString: env.databaseUrl,
-    });
+// Use the Neon serverless driver with Pool for full transaction support
+// WebSocket mode supports interactive transactions (BEGIN/COMMIT/ROLLBACK)
+// HTTP mode (neon-http) only supports non-interactive transactions
+function createDbClient() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL environment variable is not set");
   }
-  return poolInstance;
+
+  const pool = new Pool({ connectionString: databaseUrl });
+  return drizzle({ client: pool, schema });
 }
 
-export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
+// Create a singleton instance for the request lifecycle
+let dbInstance: ReturnType<typeof createDbClient> | null = null;
+
+export const db = new Proxy({} as ReturnType<typeof createDbClient>, {
   get(_target, prop) {
     if (!dbInstance) {
-      dbInstance = drizzle(getPool(), { schema });
+      dbInstance = createDbClient();
     }
     return dbInstance[prop as keyof typeof dbInstance];
   },

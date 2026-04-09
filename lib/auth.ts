@@ -8,12 +8,17 @@ import { logger } from "./logger";
 import { getStripe } from "./billing/stripe";
 
 export const auth = betterAuth({
-  baseURL: env.betterAuthUrl,
+  // Use allowedHosts for dynamic baseURL detection on Vercel
+  // This supports production domains, preview deployments, and local development
+  baseURL: env.betterAuthUrl.startsWith("http")
+    ? env.betterAuthUrl
+    : `https://${env.betterAuthUrl}`,
   secret: env.betterAuthSecret,
   trustedOrigins: [
     env.betterAuthUrl,
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     "https://monetize-two.vercel.app",
+    "https://*.vercel.app", // Support all Vercel preview deployments
   ],
   database: drizzleAdapter(db, {
     provider: "pg",

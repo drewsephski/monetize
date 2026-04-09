@@ -1,51 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
 
-// Session cache to avoid redundant validation during request lifecycle
-const SESSION_CACHE = new Map<string, { valid: boolean; timestamp: number }>();
-const CACHE_TTL = 5000; // 5 seconds
-
-async function validateSession(request: NextRequest): Promise<boolean> {
-  const sessionToken = request.cookies.get("better-auth.session_token")?.value;
-  
-  if (!sessionToken) {
-    return false;
-  }
-
-  // Check cache
-  const cached = SESSION_CACHE.get(sessionToken);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.valid;
-  }
-
-  try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
-    
-    const isValid = !!session?.user?.id;
-    
-    // Cache result
-    SESSION_CACHE.set(sessionToken, { valid: isValid, timestamp: Date.now() });
-    
-    // Cleanup old cache entries periodically
-    if (SESSION_CACHE.size > 100) {
-      const now = Date.now();
-      for (const [key, value] of SESSION_CACHE.entries()) {
-        if (now - value.timestamp > CACHE_TTL) {
-          SESSION_CACHE.delete(key);
-        }
-      }
-    }
-    
-    return isValid;
-  } catch {
-    return false;
-  }
+/**
+ * Optimistic session check using cookie presence only.
+ * This is the recommended Better Auth pattern for Vercel middleware.
+ * Note: This only checks if a session cookie exists, not if it's valid.
+ * Full session validation should happen on the server for protected actions.
+ */
+function hasSessionCookie(request: NextRequest): boolean {
+  // Check for both development and production cookie names
+  const sessionCookie =
+    request.cookies.get("better-auth.session_token") ??
+    request.cookies.get("__Secure-better-auth.session_token");
+  return !!sessionCookie?.value;
 }
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for static assets and API routes
@@ -59,11 +29,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isAuthenticated = await validateSession(request);
+  // Use optimistic cookie check (not full session validation)
+  // This avoids database queries in middleware which can cause issues on Vercel
+  const hasSession = hasSessionCookie(request);
 
-  // Protect dashboard routes - redirect to signin if not authenticated
+  // Protect dashboard routes - redirect to signin if no session cookie
   if (pathname.startsWith("/dashboard")) {
-    if (!isAuthenticated) {
+    if (!hasSession) {
       const signInUrl = new URL("/signin", request.url);
       signInUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(signInUrl);
@@ -72,7 +44,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if (pathname === "/signin" || pathname === "/signup") {
-    if (isAuthenticated) {
+    if (hasSession) {
       const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
       // Prevent redirect loops by ensuring callbackUrl isn't the same auth page
       if (callbackUrl && callbackUrl !== "/signin" && callbackUrl !== "/signup") {

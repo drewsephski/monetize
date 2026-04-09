@@ -1,11 +1,5 @@
-const requiredEnvVars = [
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
-  "STRIPE_LICENSE_WEBHOOK_SECRET",
-  "DATABASE_URL",
-  "BETTER_AUTH_SECRET",
-  "BETTER_AUTH_URL",
-] as const;
+// Environment variable configuration with safe defaults and lazy validation
+// This prevents 500 errors on Vercel during cold starts or edge runtime
 
 interface EnvConfig {
   stripeSecretKey: string;
@@ -22,54 +16,50 @@ interface EnvConfig {
 }
 
 let cachedEnv: EnvConfig | null = null;
+const warnedVars = new Set<string>();
+
+function warnOnce(envVar: string) {
+  if (!warnedVars.has(envVar)) {
+    console.warn(`[ENV] ${envVar} is not set. Some features may not work correctly.`);
+    warnedVars.add(envVar);
+  }
+}
+
+function getEnvVar(name: string, required = false): string {
+  const value = process.env[name];
+  if (!value) {
+    if (required) {
+      // In production, return a placeholder instead of throwing
+      // This prevents 500 errors while still logging the issue
+      if (process.env.NODE_ENV === "production") {
+        warnOnce(name);
+        return `[MISSING_${name}]`;
+      }
+      throw new Error(`Missing required environment variable: ${name}`);
+    }
+    return "";
+  }
+  return value;
+}
 
 function validateEnv(): EnvConfig {
   if (cachedEnv) return cachedEnv;
 
-  const missing: string[] = [];
-  const config: Partial<EnvConfig> = {};
+  const config: EnvConfig = {
+    stripeSecretKey: getEnvVar("STRIPE_SECRET_KEY", true),
+    stripeWebhookSecret: getEnvVar("STRIPE_WEBHOOK_SECRET", true),
+    stripeLicenseWebhookSecret: getEnvVar("STRIPE_LICENSE_WEBHOOK_SECRET", true),
+    databaseUrl: getEnvVar("DATABASE_URL", true),
+    betterAuthSecret: getEnvVar("BETTER_AUTH_SECRET", true),
+    betterAuthUrl: getEnvVar("BETTER_AUTH_URL", true),
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    cronSecret: process.env.CRON_SECRET,
+    nextPublicApiUrl: process.env.NEXT_PUBLIC_API_URL,
+    nextPublicStripePricePro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
+    billingSandboxMode: process.env.BILLING_SANDBOX_MODE === "true",
+  };
 
-  for (const envVar of requiredEnvVars) {
-    const value = process.env[envVar];
-    if (!value) {
-      missing.push(envVar);
-    } else {
-      switch (envVar) {
-        case "STRIPE_SECRET_KEY":
-          config.stripeSecretKey = value;
-          break;
-        case "STRIPE_WEBHOOK_SECRET":
-          config.stripeWebhookSecret = value;
-          break;
-        case "STRIPE_LICENSE_WEBHOOK_SECRET":
-          config.stripeLicenseWebhookSecret = value;
-          break;
-        case "DATABASE_URL":
-          config.databaseUrl = value;
-          break;
-        case "BETTER_AUTH_SECRET":
-          config.betterAuthSecret = value;
-          break;
-        case "BETTER_AUTH_URL":
-          config.betterAuthUrl = value;
-          break;
-      }
-    }
-  }
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`
-    );
-  }
-
-  config.stripePublishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
-  config.cronSecret = process.env.CRON_SECRET;
-  config.nextPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
-  config.nextPublicStripePricePro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
-  config.billingSandboxMode = process.env.BILLING_SANDBOX_MODE === "true";
-
-  cachedEnv = config as EnvConfig;
+  cachedEnv = config;
   return cachedEnv;
 }
 

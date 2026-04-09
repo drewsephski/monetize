@@ -1,8 +1,9 @@
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type Stripe from "stripe";
 import type * as schema from "@/drizzle/schema";
 
-export type DatabaseTransaction = NodePgDatabase<typeof schema>;
+// Use NeonDatabase from neon-serverless which supports Pool and interactive transactions
+export type DatabaseTransaction = NeonDatabase<typeof schema>;
 
 export interface EventHandlerContext {
   event: Stripe.Event;

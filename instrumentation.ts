@@ -1,12 +1,17 @@
 import * as Sentry from '@sentry/nextjs';
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config');
-  }
+  try {
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
+      await import('./sentry.server.config');
+    }
 
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      await import('./sentry.edge.config');
+    }
+  } catch (error) {
+    // Log but don't crash if Sentry fails to initialize
+    console.warn('[Sentry] Failed to initialize:', error);
   }
 }
 

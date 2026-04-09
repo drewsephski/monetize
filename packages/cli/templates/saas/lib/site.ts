@@ -85,24 +85,24 @@ export const plans = [
     highlights: ["1 seat", "Basic billing history", "Starter entitlements", "Community support"],
   },
   {
-    id: "growth",
-    name: "Growth",
-    price: "$24",
+    id: "pro",
+    name: "Pro",
+    price: "$29",
     priceId: "__PRO_PRICE_ID__",
     cadence: "Per month",
     summary: "The default paid lane for teams that need clear subscriptions and upgrade controls.",
-    cta: "Start Growth checkout",
+    cta: "Start Pro checkout",
     mostPopular: true,
     highlights: ["5 seats", "Priority support", "Advanced entitlements", "Customer portal access"],
   },
   {
-    id: "scale",
-    name: "Scale",
-    price: "$79",
+    id: "enterprise",
+    name: "Enterprise",
+    price: "$99",
     priceId: "__ENTERPRISE_PRICE_ID__",
     cadence: "Per month",
     summary: "For higher-touch accounts that need expanded limits and guided onboarding.",
-    cta: "Test Scale checkout",
+    cta: "Test Enterprise checkout",
     mostPopular: false,
     highlights: ["Unlimited seats", "Dedicated onboarding", "Custom billing terms", "Premium entitlements"],
   },
@@ -114,3 +114,10 @@ export const comparisonRows = [
   ["Billing controls", "Basic", "Portal + invoices", "Portal + contracts"],
   ["Support lane", "Community", "Priority", "Dedicated"],
 ];
+
+// Map plan IDs to Stripe price IDs from environment variables
+export const priceIdMap: Record<string, string> = {
+  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || "",
+  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "",
+  enterprise: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || "",
+};

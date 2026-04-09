@@ -89,22 +89,22 @@ export const plans = [
     highlights: ["25 credits", "Basic generations", "Starter entitlements", "Community support"],
   },
   {
-    id: "studio",
-    name: "Studio",
-    price: "$24",
+    id: "pro",
+    name: "Pro",
+    price: "$29",
     cadence: "Per month",
     summary: "The main lane for teams shipping AI features with predictable credit usage.",
-    cta: "Start Studio checkout",
+    cta: "Start Pro checkout",
     mostPopular: true,
     highlights: ["500 monthly credits", "Priority prompts", "Usage dashboard", "Top-up support"],
   },
   {
-    id: "scale",
-    name: "Scale",
-    price: "$79",
+    id: "enterprise",
+    name: "Enterprise",
+    price: "$99",
     cadence: "Per month",
     summary: "For heavier generation workloads and more aggressive top-up behavior.",
-    cta: "Test Scale checkout",
+    cta: "Test Enterprise checkout",
     mostPopular: false,
     highlights: ["2,000 monthly credits", "Advanced workflows", "Larger bursts", "Priority support"],
   },
@@ -116,6 +116,13 @@ export const comparisonRows = [
   ["Top-up support", "Manual", "Fast", "Priority"],
   ["Workspace access", "Solo", "Team", "Scaled team"],
 ];
+
+// Map plan IDs to Stripe price IDs from environment variables
+export const priceIdMap: Record<string, string> = {
+  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || "",
+  pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "",
+  enterprise: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || "",
+};
 
 export const topUpPacks = [
   { id: "pack-100", label: "100 credits", price: "$10", credits: 100 },

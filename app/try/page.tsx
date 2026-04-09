@@ -5,7 +5,6 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   ArrowLeft,
-  Sparkles,
   Check,
   CreditCard,
   Shield,
@@ -72,11 +71,15 @@ export default function TryPage() {
       {/* Navigation */}
       <nav className="glass fixed top-0 right-0 left-0 z-50 border-b border-[#e7e5e4]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-2.5">
-            <div className="group-hover:shadow-glow flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b] text-sm font-medium text-white transition-all duration-200 group-hover:scale-105">
-              <Sparkles className="h-4 w-4" />
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              <img 
+                src="/payment-credit.svg" 
+                alt="Logo" 
+                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[#1c1917]">
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
               @drew/billing
             </span>
           </Link>
@@ -285,8 +288,12 @@ export default function TryPage() {
                     />
                   </div>
 
-                  <div className="mb-6 rounded-lg border border-dashed border-[#e7e5e4] bg-[#fafaf9] p-4 text-center">
-                    <CreditCard className="mx-auto mb-2 h-8 w-8 text-[#a8a29e]" />
+                  <div className="mb-6 rounded-lg border border-dashed border-[#e7e5e4] bg-[#fafaf9] p-6 text-center">
+                    <img 
+                      src="/online-payment.svg" 
+                      alt="Secure payment" 
+                      className="mx-auto mb-3 h-20 w-auto object-contain"
+                    />
                     <p className="text-sm text-[#78716c]">
                       In production, this would open Stripe Checkout
                     </p>

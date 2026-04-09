@@ -565,6 +565,66 @@ export const dunningAttempts = pgTable(
 );
 
 // ============================================================================
+// PHASE 4: SDK LICENSE MONETIZATION
+// ============================================================================
+
+export const sdkLicenses = pgTable(
+  "sdk_licenses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    licenseKey: varchar("license_key", { length: 255 }).notNull().unique(),
+    customerEmail: varchar("customer_email", { length: 255 }).notNull(),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+    tier: varchar("tier", { length: 50 }).notNull().default("free"), // free, pro, team, enterprise
+    status: varchar("status", { length: 50 }).notNull().default("active"), // active, expired, revoked
+    features: jsonb("features").default([]), // Array of enabled feature flags
+    usageLimits: jsonb("usage_limits").default({}), // { apiCalls: 1000, projects: 5 }
+    currentUsage: jsonb("current_usage").default({}), // { apiCalls: 50, projects: 2 }
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+    lastVerifiedIp: varchar("last_verified_ip", { length: 255 }),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    licenseKeyIdx: index("sdk_licenses_key_idx").on(table.licenseKey),
+    customerEmailIdx: index("sdk_licenses_email_idx").on(table.customerEmail),
+    statusIdx: index("sdk_licenses_status_idx").on(table.status),
+    tierIdx: index("sdk_licenses_tier_idx").on(table.tier),
+    expiresAtIdx: index("sdk_licenses_expires_at_idx").on(table.expiresAt),
+  })
+);
+
+export const sdkLicenseUsage = pgTable(
+  "sdk_license_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    licenseId: uuid("license_id")
+      .notNull()
+      .references(() => sdkLicenses.id, { onDelete: "cascade" }),
+    machineId: varchar("machine_id", { length: 64 }).notNull(), // Hashed machine identifier
+    eventType: varchar("event_type", { length: 50 }).notNull(), // checkout, entitlement_check, etc.
+    metadata: jsonb("metadata"),
+    timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    licenseIdIdx: index("sdk_license_usage_license_id_idx").on(table.licenseId),
+    machineIdIdx: index("sdk_license_usage_machine_id_idx").on(table.machineId),
+    timestampIdx: index("sdk_license_usage_timestamp_idx").on(table.timestamp),
+    eventTypeIdx: index("sdk_license_usage_event_type_idx").on(table.eventType),
+  })
+);
+
+// ============================================================================
 // PHASE 4: MONETIZATION LAYER (API KEYS & DEVELOPER BILLING)
 // ============================================================================
 

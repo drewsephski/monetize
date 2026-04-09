@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -34,12 +34,16 @@ export default function SignInPage() {
     <main className="min-h-screen bg-white">
       <nav className="glass fixed left-0 right-0 top-0 z-50">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b] text-sm font-medium text-white transition-all duration-200 group-hover:scale-105 group-hover:shadow-glow">
-              <Sparkles className="h-4 w-4" />
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              <img 
+                src="/payment-credit.svg" 
+                alt="Logo" 
+                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[#1c1917]">
-              billing
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
+              @drew/billing
             </span>
           </Link>
           <Link

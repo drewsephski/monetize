@@ -2,6 +2,9 @@
 
 import { Command } from "commander";
 import chalk from "chalk";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { initCommand } from "./commands/init.js";
 import { addCommand } from "./commands/add.js";
 import { verifyCommand } from "./commands/verify.js";
@@ -9,13 +12,22 @@ import { sandboxCommand } from "./commands/sandbox.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { telemetryCommand } from "./commands/telemetry.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { setupWebhookCommand } from "./commands/setup-webhook.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Read version from package.json
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, "../package.json"), "utf-8")
+);
 
 const program = new Command();
 
 program
   .name("drew-billing-cli")
   .description("CLI for drew-billing - Add subscriptions to your app in 10 minutes")
-  .version("1.0.0");
+  .version(packageJson.version);
 
 program
   .command("init")
@@ -60,6 +72,13 @@ program
   .description("Diagnose billing setup issues")
   .action(doctorCommand);
 
+program
+  .command("setup-webhook")
+  .description("Guide for setting up Stripe webhooks (local or production)")
+  .option("--production", "Production webhook setup mode")
+  .option("--skip-install", "Skip Stripe CLI installation check")
+  .action(setupWebhookCommand);
+
 // Default help
 if (process.argv.length === 2) {
   console.log(chalk.blue.bold("\n⚡ drew-billing-cli\n"));
@@ -67,15 +86,16 @@ if (process.argv.length === 2) {
   console.log(chalk.gray("Quick start:"));
   console.log("  npx drew-billing-cli init\n");
   console.log(chalk.gray("Commands:"));
-  console.log("  init       Initialize billing in your project");
-  console.log("  add        Add prebuilt UI components");
-  console.log("  verify     Verify your setup");
-  console.log("  sandbox    Toggle sandbox mode");
-  console.log("  whoami     Show current configuration");
-  console.log("  doctor     Diagnose setup issues");
-  console.log("  telemetry  Manage usage telemetry\n");
+  console.log("  init           Initialize billing in your project");
+  console.log("  add            Add prebuilt UI components");
+  console.log("  verify         Verify your setup");
+  console.log("  sandbox        Toggle sandbox mode");
+  console.log("  whoami         Show current configuration");
+  console.log("  doctor         Diagnose setup issues");
+  console.log("  setup-webhook  Guide for Stripe webhook setup");
+  console.log("  telemetry      Manage usage telemetry\n");
   console.log(chalk.gray("Documentation:"));
-  console.log("  https://billing.drew.dev/docs\n");
+  console.log("  https://github.com/drewsephski/monetize\n");
 }
 
 program.parse();

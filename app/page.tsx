@@ -10,7 +10,6 @@ import {
   Layers,
   RefreshCw,
   ChevronRight,
-  Sparkles,
   Clock,
   Code2,
   Terminal,
@@ -20,6 +19,7 @@ import {
   Webhook,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { useSession } from "@/lib/auth-client"
 
 function useScrollReveal() {
   const ref = useRef<HTMLDivElement>(null)
@@ -54,6 +54,7 @@ export default function Page() {
   const comparisonRef = useScrollReveal()
   const featuresRef = useScrollReveal()
   const [copiedText, setCopiedText] = useState<string | null>(null)
+  const { data: session } = useSession()
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -66,15 +67,25 @@ export default function Page() {
       {/* Navigation */}
       <nav className="glass fixed top-0 right-0 left-0 z-50">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-2.5">
-            <div className="group-hover:shadow-glow flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b] text-sm font-medium text-white transition-all duration-200 group-hover:scale-105">
-              <Sparkles className="h-4 w-4" />
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              <img 
+                src="/payment-credit.svg" 
+                alt="Logo" 
+                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[#1c1917]">
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
               @drew/billing
             </span>
           </Link>
           <div className="flex items-center gap-1">
+            <Link
+              href="/pricing"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+            >
+              Pricing
+            </Link>
             <Link
               href="/try"
               className="rounded-lg px-4 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
@@ -87,16 +98,8 @@ export default function Page() {
             >
               Playground
             </Link>
-            <a
-              href="https://github.com/drew/billing"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg px-4 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
-            >
-              GitHub
-            </a>
             <div className="mx-2 h-4 w-px bg-[#e7e5e4]" />
-            <Link href="/try">
+            <Link href={session ? "/dashboard" : "/signin"}>
               <Button className="btn-interactive shadow-elevated h-9 bg-[#b8860b] px-5 font-medium text-white hover:bg-[#8b6914]">
                 Get Started
               </Button>
@@ -139,9 +142,20 @@ export default function Page() {
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
                 </Button>
               </Link>
+              <Link href="/setup-visual">
+                <Button className="group py-6 bg-[#1c1917] px-8 text-lg font-medium text-white hover:bg-[#292524]">
+                  <Rocket className="mr-2 h-5 w-5" />
+                  See How It Works
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </Button>
+              </Link>
+            </div>
+
+            {/* Command Copy */}
+            <div className="mb-8 flex justify-center">
               <button
                 onClick={() => copyToClipboard("npx drew-billing-cli init")}
-                className="group relative flex items-center gap-3 overflow-hidden rounded-xl border border-[#e7e5e4] bg-white px-4 py-1 font-mono text-sm font-medium text-[#44403c] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#d4d4d8] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98]"
+                className="group relative flex items-center justify-center gap-2.5 overflow-hidden rounded-xl border border-[#e7e5e4] bg-white px-6 py-3 font-mono text-sm font-medium text-[#44403c] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#d4d4d8] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98]"
               >
                 <span className="absolute inset-0 bg-gradient-to-r from-[#fafaf9] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                 <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#fafaf9] text-[#78716c] ring-1 ring-[#e7e5e4] transition-all duration-300 group-hover:bg-[#f5f5f4] group-hover:text-[#57534e] group-hover:ring-[#d4d4d8]">
@@ -259,7 +273,7 @@ export default function Page() {
                 Complete SaaS template with auth, pricing page, and customer dashboard. Deploy in 10 minutes.
               </p>
               <div className="space-y-2">
-                {["NextAuth integration", "Pricing page", "Customer portal"].map((item) => (
+                {["Better Auth integration", "Pricing page", "Customer portal"].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-[#57534e]">
                     <Check className="h-4 w-4 text-[#22c55e]" />
                     {item}
@@ -895,24 +909,31 @@ export default function Page() {
       <footer className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-12">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#b8860b] text-xs font-medium text-white">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
+            <div className="flex items-center gap-3">
+              <img 
+                src="/online-payment.svg" 
+                alt="Logo" 
+                className="h-10 w-10 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              />
               <span className="font-[family-name:var(--font-display)] font-medium text-[#1c1917]">
-                billing
+                @drew/billing
               </span>
             </div>
 
             <div className="flex flex-wrap gap-1">
-              {["Documentation", "GitHub", "Twitter", "Discord"].map((link) => (
-                <a
-                  key={link}
-                  href="#"
+              {[
+                { label: "Pricing", href: "/pricing" },
+                { label: "Live Demo", href: "/try" },
+                { label: "Playground", href: "/demo" },
+                { label: "How It Works", href: "/setup-visual" },
+              ].map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
                   className="rounded-lg px-4 py-2 text-sm text-[#78716c] transition-all duration-200 hover:bg-[#e7e5e4]/50 hover:text-[#1c1917]"
                 >
-                  {link}
-                </a>
+                  {link.label}
+                </Link>
               ))}
             </div>
 

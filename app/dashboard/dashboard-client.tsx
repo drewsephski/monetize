@@ -6,10 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
-  Sparkles,
   CreditCard,
   Settings,
-  LogOut,
   Loader2,
   User,
   CheckCircle,
@@ -127,25 +125,35 @@ export default function DashboardClient() {
       {/* Header */}
       <nav className="glass sticky top-0 z-50 border-b border-[#e7e5e4]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b] text-sm font-medium text-white transition-all duration-200 group-hover:scale-105">
-              <Sparkles className="h-4 w-4" />
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              <img 
+                src="/payment-credit.svg" 
+                alt="Logo" 
+                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[#1c1917]">
-              billing
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
+              @drew/billing
             </span>
           </Link>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm text-[#44403c] shadow-sm">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/pricing"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+            >
+              Pricing
+            </Link>
+            <div className="mx-2 h-4 w-px bg-[#e7e5e4]" />
+            <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm text-[#44403c] shadow-sm">
               <User className="h-4 w-4 text-[#78716c]" />
-              <span>{session.user.email}</span>
+              <span className="max-w-[150px] truncate">{session.user.email}</span>
             </div>
             <button
               onClick={handleSignOut}
-              className="group inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
             >
-              <LogOut className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               Sign out
             </button>
           </div>
@@ -223,21 +231,19 @@ export default function DashboardClient() {
               {!loadingSubscription && (
                 subscriptionData?.hasSubscription ? (
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1"
+                    <button
                       onClick={openCustomerPortal}
+                      className="flex-1 rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
                     >
                       Manage Subscription
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
+                    </button>
+                    <button
                       onClick={fetchSubscription}
                       disabled={loadingSubscription}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e7e5e4] bg-white text-[#57534e] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917] disabled:opacity-50"
                     >
                       <RefreshCw className={`h-4 w-4 ${loadingSubscription ? "animate-spin" : ""}`} />
-                    </Button>
+                    </button>
                   </div>
                 ) : (
                   <Link href="/pricing" className="block">
@@ -260,13 +266,12 @@ export default function DashboardClient() {
             <p className="mb-4 text-sm text-[#78716c]">
               Payment methods, invoices, and history
             </p>
-            <Button 
-              variant="outline" 
-              className="w-full"
+            <button
               onClick={openCustomerPortal}
+              className="w-full rounded-lg border border-[#e7e5e4] bg-white px-4 py-2 text-sm font-medium text-[#57534e] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
             >
               Billing Portal
-            </Button>
+            </button>
           </div>
 
           {/* Account Info */}

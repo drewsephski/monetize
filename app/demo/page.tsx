@@ -13,7 +13,6 @@ import {
   Users,
   Play,
   Loader2,
-  Sparkles,
   CheckCircle,
   Terminal,
   User,
@@ -156,12 +155,16 @@ export default function DemoPage() {
       {/* Navigation */}
       <nav className="glass fixed top-0 right-0 left-0 z-50">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-2.5">
-            <div className="group-hover:shadow-glow flex h-8 w-8 items-center justify-center rounded-lg bg-[#b8860b] text-sm font-medium text-white transition-all duration-200 group-hover:scale-105">
-              <Sparkles className="h-4 w-4" />
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              <img 
+                src="/payment-credit.svg" 
+                alt="Logo" 
+                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[#1c1917]">
-              billing
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
+              @drew/billing
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -171,21 +174,19 @@ export default function DemoPage() {
                   <User className="h-4 w-4 text-[#78716c]" />
                   <span className="max-w-[150px] truncate">{session.user.email}</span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => authClient.signOut()}
-                  className="text-xs"
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
                 >
                   Sign out
-                </Button>
+                </button>
               </div>
             ) : (
               <Link href="/signin">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 border-[#e7e5e4] bg-white text-[#57534e] hover:bg-[#f5f5f4] hover:text-[#1c1917]"
                 >
                   <LogIn className="h-4 w-4" />
                   Sign in

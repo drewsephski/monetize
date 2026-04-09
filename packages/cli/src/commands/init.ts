@@ -47,6 +47,9 @@ export async function initCommand(options: InitOptions) {
   const isEmptyDir = await isDirectoryEmpty(cwd);
   const hasPackageJson = await fs.pathExists(path.join(cwd, "package.json"));
 
+  // Debug logging
+  console.log(chalk.gray(`Debug: cwd=${cwd}, isEmptyDir=${isEmptyDir}, hasPackageJson=${hasPackageJson}`));
+
   let pkgManager: PackageManager = "npm";
   let projectName = path.basename(cwd);
   let detectedFramework: { name: string; version?: string } = { name: "nextjs" };
@@ -187,7 +190,7 @@ export async function initCommand(options: InitOptions) {
   const depsSpinner = ora("Installing dependencies...").start();
   try {
     // Try with different package managers if one fails
-    await installWithRetry(["@drew/billing-sdk", "stripe"], pkgManager, depsSpinner);
+    await installWithRetry(["@drew/billing-sdk", "stripe"], pkgManager, depsSpinner, false, 2, cwd);
     depsSpinner.succeed("Dependencies installed");
     results.dependencies = true;
   } catch (error) {
@@ -208,7 +211,7 @@ export async function initCommand(options: InitOptions) {
         "@types/node", 
         "typescript", 
         "stripe"
-      ], pkgManager, addDepsSpinner, true);
+      ], pkgManager, addDepsSpinner, true, 2, cwd);
       addDepsSpinner.succeed("Additional dependencies installed");
     } catch {
       addDepsSpinner.warn("Some additional dependencies may need manual installation");
@@ -270,7 +273,7 @@ export async function initCommand(options: InitOptions) {
     await fs.ensureDir(path.join(cwd, "app"));
     await fs.ensureDir(path.join(cwd, "components"));
     
-    await installTemplates(config.template, products);
+    await installTemplates(config.template, products, cwd);
     templateSpinner.succeed(`Template installed`);
     results.templates = true;
   } catch (error) {
@@ -493,24 +496,29 @@ async function installWithRetry(
   pkgManager: PackageManager, 
   spinner: Ora,
   dev: boolean = false,
-  maxRetries: number = 2
+  maxRetries: number = 2,
+  projectCwd?: string
 ): Promise<void> {
   const installCmd = pkgManager === "npm" ? "install" : "add";
   const devFlag = dev ? (pkgManager === "npm" ? "--save-dev" : "-D") : "";
   const args = [installCmd, ...packages, ...(devFlag ? [devFlag] : [])];
+  const cwd = projectCwd || process.cwd();
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       spinner.text = `Installing dependencies (attempt ${attempt}/${maxRetries})...`;
       
       await execa(pkgManager, args, {
-        cwd: process.cwd(),
+        cwd,
         stdio: "pipe",
         timeout: 120000, // 2 minute timeout
       });
       
       return; // Success
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(chalk.gray(`  Install attempt ${attempt} failed: ${errorMsg.substring(0, 100)}`));
+      
       if (attempt === maxRetries) {
         throw error;
       }

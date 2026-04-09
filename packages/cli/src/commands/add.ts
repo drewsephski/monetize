@@ -57,6 +57,7 @@ const COMPONENTS = {
 
 interface AddOptions {
   path?: string;
+  cwd?: string;
 }
 
 export async function addCommand(component: string, options: AddOptions) {
@@ -79,7 +80,8 @@ export async function addCommand(component: string, options: AddOptions) {
 
   const componentInfo = COMPONENTS[component as keyof typeof COMPONENTS];
   const installPath = options.path || "components/billing";
-  const fullPath = path.join(process.cwd(), installPath);
+  const cwd = options.cwd || process.cwd();
+  const fullPath = path.join(cwd, installPath);
 
   console.log(chalk.gray(`Installing ${componentInfo.name}...\n`));
 

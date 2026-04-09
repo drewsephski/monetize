@@ -4,9 +4,10 @@ import { addCommand } from "../commands/add.js";
 
 export async function installTemplates(
   templateType: string,
-  products: Array<{ id: string; name: string; priceId: string }>
+  products: Array<{ id: string; name: string; priceId: string }>,
+  projectCwd?: string
 ): Promise<void> {
-  const cwd = process.cwd();
+  const cwd = projectCwd || process.cwd();
 
   switch (templateType) {
     case "saas":
@@ -31,7 +32,7 @@ async function installSaasTemplate(
   products: Array<{ id: string; name: string; priceId: string }>
 ): Promise<void> {
   // First, install all billing components
-  await addCommand("all", { path: "components/billing" });
+  await addCommand("all", { path: "components/billing", cwd });
 
   // Get price IDs for plans
   const proProduct = products.find(p => p.name === "Pro");
@@ -351,7 +352,7 @@ async function installApiTemplate(
   _products: Array<{ id: string; name: string; priceId: string }>
 ): Promise<void> {
   // Install usage meter component
-  await addCommand("usage-meter", { path: "components/billing" });
+  await addCommand("usage-meter", { path: "components/billing", cwd });
 
   // API-focused template with usage tracking
   const apiRoute = `import { NextRequest, NextResponse } from "next/server";
@@ -407,8 +408,8 @@ async function installUsageTemplate(
   _products: Array<{ id: string; name: string; priceId: string }>
 ): Promise<void> {
   // Install required components
-  await addCommand("usage-meter", { path: "components/billing" });
-  await addCommand("upgrade-button", { path: "components/billing" });
+  await addCommand("usage-meter", { path: "components/billing", cwd });
+  await addCommand("upgrade-button", { path: "components/billing", cwd });
 
   // Usage-based billing focused template
   const dashboardPage = `"use client";

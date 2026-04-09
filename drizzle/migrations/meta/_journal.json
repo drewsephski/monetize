@@ -50,6 +50,13 @@
       "when": 1775692274916,
       "tag": "0006_add_feedback_table",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775761072799,
+      "tag": "0007_far_charles_xavier",
+      "breakpoints": true
     }
   ]
 }

@@ -165,6 +165,12 @@ const PLAN_PRICE_MAP: Record<string, string> = {
   growth: process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH || "price_1TKNcXRZE8Whwvf0LPFCoLvn",
 };
 
+const SDK_PLAN_PRICE_MAP: Record<string, string> = {
+  "sdk-pro": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_PRO || "price_1TKOSiRZE8Whwvf0DwqOcFUk",
+  "sdk-team": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_TEAM || "price_1TKOSjRZE8Whwvf0GunJcrO3",
+  "sdk-enterprise": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_ENTERPRISE || "price_1TKOSjRZE8Whwvf0EgF5Flpy",
+};
+
 export default function PricingPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = authClient.useSession();
@@ -198,12 +204,21 @@ export default function PricingPage() {
   const getCurrentPlanId = () => {
     if (!subscriptionData?.subscription?.stripePriceId) return null;
     const priceId = subscriptionData.subscription.stripePriceId;
+    // Check hosted plans
     for (const [planId, mappedPriceId] of Object.entries(PLAN_PRICE_MAP)) {
       if (mappedPriceId === priceId) return planId;
     }
-    const planName = subscriptionData.subscription.planName?.toLowerCase();
-    if (planName?.includes("growth")) return "growth";
-    if (planName?.includes("pro")) return "pro";
+    // Check SDK plans
+    for (const [planId, mappedPriceId] of Object.entries(SDK_PLAN_PRICE_MAP)) {
+      if (mappedPriceId === priceId) return planId;
+    }
+    // Fallback to plan name matching
+    const planName = subscriptionData.subscription.planName?.toLowerCase() || "";
+    if (planName.includes("growth")) return "growth";
+    if (planName.includes("pro") && planName.includes("sdk")) return "sdk-pro";
+    if (planName.includes("team") && planName.includes("sdk")) return "sdk-team";
+    if (planName.includes("enterprise") && planName.includes("sdk")) return "sdk-enterprise";
+    if (planName.includes("pro")) return "pro";
     return null;
   };
 
@@ -562,23 +577,31 @@ export default function PricingPage() {
           <div className="grid gap-6 md:grid-cols-4">
             {SDK_PLANS.map((sdkPlan) => {
               const Icon = sdkPlan.icon;
+              const sdkCurrentPlan = isCurrentPlan(sdkPlan.id);
               return (
                 <div
                   key={sdkPlan.id}
                   className={`relative rounded-xl border bg-white p-5 transition-all duration-200 ${
-                    sdkPlan.popular
+                    sdkPlan.popular && !sdkCurrentPlan
                       ? "border-[#635bff]/30 shadow-md"
-                      : "border-[#e7e5e4] hover:border-[#d6d3d1]"
+                      : sdkCurrentPlan
+                        ? "border-[#2d5a3d]/30 bg-[#2d5a3d]/5"
+                        : "border-[#e7e5e4] hover:border-[#d6d3d1]"
                   }`}
                 >
-                  {sdkPlan.popular && (
+                  {sdkPlan.popular && !sdkCurrentPlan && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#635bff] px-3 py-0.5 text-xs font-medium text-white">
                       Most Popular
                     </div>
                   )}
+                  {sdkCurrentPlan && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#2d5a3d] px-3 py-0.5 text-xs font-medium text-white">
+                      Current Plan
+                    </div>
+                  )}
 
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#635bff]/10">
-                    <Icon className="h-5 w-5 text-[#635bff]" />
+                  <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg ${sdkCurrentPlan ? "bg-[#2d5a3d]/10" : "bg-[#635bff]/10"}`}>
+                    <Icon className={`h-5 w-5 ${sdkCurrentPlan ? "text-[#2d5a3d]" : "text-[#635bff]"}`} />
                   </div>
 
                   <h3 className="mb-1 font-[family-name:var(--font-display)] text-lg text-[#1c1917]">
@@ -603,17 +626,24 @@ export default function PricingPage() {
 
                   <button
                     onClick={() => handleSDKLicensePurchase(sdkPlan.id)}
-                    disabled={loading === sdkPlan.id}
-                    className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                      sdkPlan.popular
-                        ? "bg-[#635bff] text-white hover:bg-[#4f49cc]"
-                        : "border border-[#e7e5e4] bg-white text-[#1c1917] hover:bg-[#f5f5f4]"
+                    disabled={loading === sdkPlan.id || sdkCurrentPlan || sdkPlan.id === "sdk-free"}
+                    className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      sdkCurrentPlan
+                        ? "border border-[#2d5a3d]/30 bg-[#2d5a3d]/10 text-[#2d5a3d]"
+                        : sdkPlan.popular
+                          ? "bg-[#635bff] text-white hover:bg-[#4f49cc]"
+                          : "border border-[#e7e5e4] bg-white text-[#1c1917] hover:bg-[#f5f5f4]"
                     }`}
                   >
                     {loading === sdkPlan.id ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading...
+                      </span>
+                    ) : sdkCurrentPlan ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Check className="h-4 w-4" />
+                        Current Plan
                       </span>
                     ) : (
                       sdkPlan.cta

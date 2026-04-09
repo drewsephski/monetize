@@ -8,7 +8,7 @@ type StripeProduct = { id: string; name: string; priceId: string };
 
 type TemplateKey = "saas" | "api" | "usage";
 
-const DOCS_URL = "https://billing.drew.dev/docs";
+const DOCS_URL = "https://monetize-two.vercel.app/docs";
 const GITHUB_URL = "https://github.com/drewsephski/monetize";
 const TEMPLATE_INFO: Record<
   TemplateKey,

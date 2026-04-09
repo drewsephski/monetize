@@ -1,9 +1,10 @@
 {
-  "name": "drew-billing-cli",
+  "name": "@drew/billing-cli",
   "version": "1.2.9",
   "description": "CLI for drew-billing - Add subscriptions to your app in 10 minutes",
   "type": "module",
   "bin": {
+    "drew-billing": "dist/index.js",
     "billing": "dist/index.js"
   },
   "main": "./dist/index.js",
@@ -21,7 +22,11 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --minify --clean --sourcemap --dts",
     "dev": "tsup src/index.ts --format esm --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "stripe",

@@ -5,7 +5,7 @@ export const siteConfig: SiteConfig = {
   name: "AI Credits",
   eyebrow: "AI credits product",
   description: "An AI credits example with prepaid usage, plan messaging, top-up flow, and a sandbox-friendly onboarding loop.",
-  docsUrl: "https://billing.drew.dev/docs",
+  docsUrl: "/docs",
   githubUrl: "https://github.com/drewsephski/monetize",
   examplesUrl: "https://github.com/drewsephski/monetize/tree/main/examples/ai-credits",
   routes: [

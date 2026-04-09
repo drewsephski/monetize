@@ -16,10 +16,17 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "stripe:webhook": "stripe listen --forward-to http://localhost:3000/api/stripe/webhook --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted"
+    "stripe:webhook": "stripe listen --forward-to http://localhost:3000/api/stripe/webhook --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted",
+    "publish:sdk": "cd packages/sdk && npm run build && npm publish --access public",
+    "publish:cli": "cd packages/cli && npm run build && npm publish --access public",
+    "test:e2e": "tsx scripts/e2e-test.ts",
+    "verify:types": "tsc --noEmit",
+    "verify:build": "next build"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.1",
+    "@react-email/components": "^1.0.12",
+    "@sentry/nextjs": "^10.48.0",
     "better-auth": "^1.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -34,6 +41,8 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-email": "^5.2.10",
+    "resend": "^6.10.0",
     "shadcn": "^4.2.0",
     "stripe": "^22.0.1",
     "tailwind-merge": "^3.5.0",

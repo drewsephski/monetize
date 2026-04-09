@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { priceId, userId, successUrl, cancelUrl, trialDays } = body;
+    const { priceId, userId, successUrl, cancelUrl, trialDays, metadata } = body;
 
     requestLogger.info({ userId, priceId }, "Creating checkout session");
 
@@ -70,6 +70,10 @@ export async function POST(req: NextRequest) {
       success_url: successUrl || `${req.headers.get("origin")}/dashboard?success=true`,
       cancel_url: cancelUrl || `${req.headers.get("origin")}/dashboard`,
       client_reference_id: userId,
+      metadata: {
+        userId,
+        ...metadata,
+      },
       subscription_data: trialDays && trialDays > 0
         ? { trial_period_days: trialDays }
         : undefined,

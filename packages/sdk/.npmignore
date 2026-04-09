@@ -1,0 +1,17 @@
+node_modules/
+*.test.ts
+*.spec.ts
+.env
+.env.local
+.env.*.local
+.vscode/
+.idea/
+coverage/
+*.log
+.DS_Store
+src/
+tsconfig.json
+tsup.config.ts
+.eslintrc*
+.prettierrc*
+.github/

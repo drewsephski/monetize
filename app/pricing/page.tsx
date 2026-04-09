@@ -12,21 +12,31 @@ import {
   Zap,
   Shield,
   Layers,
+  Code,
+  Terminal,
+  Package,
+  Building2,
+  Cloud,
+  Download,
 } from "lucide-react";
 
-const PLANS = [
+type ProductTab = "hosted" | "sdk";
+
+// Drew Billing Cloud (SaaS) - We host your billing infrastructure
+const HOSTED_PLANS = [
   {
     id: "free",
     name: "Free",
     description: "For individuals getting started",
     price: 0,
     interval: null,
+    priceId: null,
     features: [
       "Up to 100 customers",
-      "Basic checkout",
-      "Standard webhooks",
+      "Basic checkout pages",
+      "Stripe integration",
       "Community support",
-      "Self-hosted only",
+      "Self-hosted (you manage it)",
     ],
     cta: "Get Started Free",
     popular: false,
@@ -40,10 +50,10 @@ const PLANS = [
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKNcWRZE8Whwvf0lLV0ckmi",
     features: [
       "Up to 10,000 customers",
+      "Hosted billing dashboard",
       "Advanced analytics",
-      "Priority support",
-      "Team collaboration",
-      "Custom integrations",
+      "Priority email support",
+      "Team member access",
       "14-day free trial",
     ],
     cta: "Start Free Trial",
@@ -59,13 +69,78 @@ const PLANS = [
     features: [
       "Up to 50,000 customers",
       "Usage-based billing",
-      "Advanced analytics",
+      "Revenue analytics",
       "Priority support",
       "API access",
       "0.5% transaction fee",
     ],
     cta: "Start Free Trial",
     popular: false,
+  },
+];
+
+// Drew Billing SDK (License) - Embed billing in your own app
+const SDK_PLANS = [
+  {
+    id: "sdk-free",
+    name: "Free",
+    description: "Try it out in your app",
+    price: 0,
+    features: [
+      "1,000 API calls per month",
+      "1 active project",
+      "Basic billing features",
+      "Self-hosted setup",
+      "Community support",
+    ],
+    cta: "View Docs",
+    icon: Package,
+  },
+  {
+    id: "sdk-pro",
+    name: "Pro",
+    description: "For indie developers",
+    price: 29,
+    features: [
+      "10,000 API calls per month",
+      "5 active projects",
+      "All billing features",
+      "Email support",
+      "Usage analytics",
+    ],
+    cta: "Buy License",
+    popular: true,
+    icon: Code,
+  },
+  {
+    id: "sdk-team",
+    name: "Team",
+    description: "For dev teams & agencies",
+    price: 99,
+    features: [
+      "100,000 API calls per month",
+      "20 active projects",
+      "Team license sharing",
+      "Custom integrations",
+      "Priority support",
+    ],
+    cta: "Buy License",
+    icon: Building2,
+  },
+  {
+    id: "sdk-enterprise",
+    name: "Enterprise",
+    description: "For large platforms",
+    price: 499,
+    features: [
+      "Unlimited API calls",
+      "Unlimited projects",
+      "SSO & user management",
+      "SLA guarantee",
+      "White-glove setup",
+    ],
+    cta: "Contact Sales",
+    icon: Shield,
   },
 ];
 
@@ -80,7 +155,6 @@ type SubscriptionData = {
   hasSubscription: boolean;
 };
 
-// Map plan IDs to price IDs for comparison
 const PLAN_PRICE_MAP: Record<string, string> = {
   pro: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKNcWRZE8Whwvf0lLV0ckmi",
   growth: process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH || "price_1TKNcXRZE8Whwvf0LPFCoLvn",
@@ -92,6 +166,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
+  const [activeTab, setActiveTab] = useState<ProductTab>("hosted");
 
   useEffect(() => {
     if (session) {
@@ -116,16 +191,13 @@ export default function PricingPage() {
 
   const getCurrentPlanId = () => {
     if (!subscriptionData?.subscription?.planId) return null;
-    // Map price ID back to plan ID
     const priceId = subscriptionData.subscription.planId;
     for (const [planId, mappedPriceId] of Object.entries(PLAN_PRICE_MAP)) {
       if (mappedPriceId === priceId) return planId;
     }
-    // Fallback: try to match by plan name
     const planName = subscriptionData.subscription.planName?.toLowerCase();
     if (planName?.includes("growth")) return "growth";
     if (planName?.includes("pro")) return "pro";
-    if (planName?.includes("enterprise")) return "enterprise";
     return null;
   };
 
@@ -142,18 +214,13 @@ export default function PricingPage() {
     }
   }, [error]);
 
-  const handleSubscribe = async (plan: (typeof PLANS)[number]) => {
+  const handleSubscribe = async (plan: (typeof HOSTED_PLANS)[number]) => {
     if (plan.id === "free") {
       if (!session) {
         router.push("/signin");
       } else {
         router.push("/dashboard");
       }
-      return;
-    }
-
-    if (plan.id === "enterprise") {
-      window.location.href = "mailto:sales@example.com";
       return;
     }
 
@@ -199,6 +266,65 @@ export default function PricingPage() {
     }
   };
 
+  const handleSDKLicensePurchase = async (planId: string) => {
+    if (!session) {
+      router.push("/signin?callbackUrl=/pricing");
+      return;
+    }
+
+    if (planId === "sdk-free") {
+      router.push("/docs/sdk/getting-started");
+      return;
+    }
+
+    if (planId === "sdk-enterprise") {
+      window.location.href = "mailto:sales@monetize-two.vercel.app?subject=SDK Enterprise License";
+      return;
+    }
+
+    setLoading(planId);
+    setError(null);
+
+    try {
+      const sdkPriceIds: Record<string, string> = {
+        "sdk-pro": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_PRO || "",
+        "sdk-team": process.env.NEXT_PUBLIC_STRIPE_PRICE_SDK_TEAM || "",
+      };
+
+      const priceId = sdkPriceIds[planId] || process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
+
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priceId,
+          userId: session.user.id,
+          successUrl: `${window.location.origin}/checkout/success?type=sdk_license`,
+          cancelUrl: `${window.location.origin}/checkout/cancel`,
+          metadata: {
+            type: "sdk_license",
+            tier: planId.replace("sdk-", ""),
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create checkout");
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+      setLoading(null);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-white">
       {/* Navigation */}
@@ -206,6 +332,7 @@ export default function PricingPage() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="group flex items-center gap-3">
             <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src="/payment-credit.svg" 
                 alt="Logo" 
@@ -255,10 +382,10 @@ export default function PricingPage() {
             </span>
           </div>
           <h1 className="mb-4 font-[family-name:var(--font-display)] text-4xl text-[#1c1917] lg:text-5xl">
-            Choose your plan
+            Choose your product
           </h1>
           <p className="mx-auto max-w-xl text-lg text-[#78716c]">
-            Start free and scale as you grow. No hidden fees, cancel anytime.
+            Two ways to add billing to your business. Pick what works for you.
           </p>
         </div>
       </section>
@@ -272,109 +399,245 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* Pricing Grid */}
-      <section className="mx-auto max-w-6xl px-6 pb-24">
-        <div className="grid gap-6 md:grid-cols-3">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`relative rounded-2xl border bg-white p-6 shadow-subtle transition-all duration-200 ${
-                plan.popular
-                  ? "border-[#b8860b]/30 shadow-elevated"
-                  : "border-[#e7e5e4] hover:border-[#d6d3d1]"
+      {/* Product Selector Tabs */}
+      <section className="mx-auto max-w-4xl px-6 pb-12">
+        <div className="flex flex-col items-center gap-6">
+          {/* Tab Buttons */}
+          <div className="flex rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-1.5">
+            <button
+              onClick={() => setActiveTab("hosted")}
+              className={`flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
+                activeTab === "hosted"
+                  ? "bg-white text-[#1c1917] shadow-sm"
+                  : "text-[#78716c] hover:text-[#1c1917]"
               }`}
             >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#b8860b] px-4 py-1 text-xs font-medium text-white">
-                  Most Popular
-                </div>
-              )}
+              <Cloud className="h-4 w-4" />
+              Drew Billing Cloud
+            </button>
+            <button
+              onClick={() => setActiveTab("sdk")}
+              className={`flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
+                activeTab === "sdk"
+                  ? "bg-white text-[#1c1917] shadow-sm"
+                  : "text-[#78716c] hover:text-[#1c1917]"
+              }`}
+            >
+              <Download className="h-4 w-4" />
+              Drew Billing SDK
+            </button>
+          </div>
 
-              <div className="mb-6">
-                <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-[#b8860b]/10">
-                  {plan.id === "free" ? (
-                    <Layers className="h-6 w-6 text-[#b8860b]" />
-                  ) : plan.id === "pro" ? (
-                    <Zap className="h-6 w-6 text-[#b8860b]" />
-                  ) : (
-                    <Shield className="h-6 w-6 text-[#b8860b]" />
-                  )}
-                </div>
-                <h3 className="mb-1 font-[family-name:var(--font-display)] text-xl text-[#1c1917]">
-                  {plan.name}
-                </h3>
-                <p className="text-sm text-[#78716c]">{plan.description}</p>
+          {/* Product Description */}
+          <div className="text-center">
+            {activeTab === "hosted" ? (
+              <div className="space-y-2">
+                <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#1c1917]">
+                  We host your billing
+                </h2>
+                <p className="mx-auto max-w-lg text-[#78716c]">
+                  Get a complete billing dashboard and API without managing infrastructure. 
+                  Perfect if you&apos;re building a SaaS and want billing handled for you.
+                </p>
               </div>
-
-              <div className="mb-6">
-                {plan.price !== null ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-[family-name:var(--font-display)] text-4xl text-[#1c1917]">
-                      ${plan.price}
-                    </span>
-                    {plan.interval && (
-                      <span className="text-[#78716c]">/{plan.interval}</span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="font-[family-name:var(--font-display)] text-2xl text-[#1c1917]">
-                    Custom
-                  </span>
-                )}
+            ) : (
+              <div className="space-y-2">
+                <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#1c1917]">
+                  Embed billing in your app
+                </h2>
+                <p className="mx-auto max-w-lg text-[#78716c]">
+                  License our SDK to add billing capabilities to your own software. 
+                  Perfect if you&apos;re building a platform, tool, or agency solution.
+                </p>
               </div>
+            )}
+          </div>
+        </div>
+      </section>
 
-              <ul className="mb-8 space-y-3">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2d5a3d]/10">
-                      <Check className="h-3 w-3 text-[#2d5a3d]" strokeWidth={2.5} />
-                    </div>
-                    <span className="text-[#44403c]">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleSubscribe(plan)}
-                disabled={loading === plan.id || sessionPending || isCurrentPlan(plan.id)}
-                className={`group relative w-full overflow-hidden rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
-                  isCurrentPlan(plan.id)
-                    ? "border border-[#e7e5e4] bg-[#f5f5f4] text-[#78716c]"
-                    : plan.popular
-                      ? "bg-[#b8860b] text-white shadow-md hover:bg-[#8b6914] hover:shadow-lg"
-                      : plan.id === "free"
-                        ? "border border-[#2d5a3d]/30 bg-[#2d5a3d]/5 text-[#2d5a3d] hover:bg-[#2d5a3d]/10 hover:shadow-md"
-                        : "border border-[#635bff]/30 bg-[#635bff]/5 text-[#635bff] hover:bg-[#635bff]/10 hover:shadow-md"
+      {/* Pricing Grid */}
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        {activeTab === "hosted" ? (
+          <div className="grid gap-6 md:grid-cols-3">
+            {HOSTED_PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`relative rounded-2xl border bg-white p-6 shadow-subtle transition-all duration-200 ${
+                  plan.popular
+                    ? "border-[#b8860b]/30 shadow-elevated"
+                    : "border-[#e7e5e4] hover:border-[#d6d3d1]"
                 }`}
               >
-                {loading === plan.id ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading...
-                  </span>
-                ) : isCurrentPlan(plan.id) ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4" />
-                    Current plan
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    {plan.id === "free"}
-                    {plan.id === "pro" && <Zap className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />}
-                    {plan.id === "enterprise"}
-                    {plan.cta}
-                    {plan.popular && <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />}
-                  </span>
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#b8860b] px-4 py-1 text-xs font-medium text-white">
+                    Most Popular
+                  </div>
                 )}
-              </button>
+
+                <div className="mb-6">
+                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-[#b8860b]/10">
+                    {plan.id === "free" ? (
+                      <Layers className="h-6 w-6 text-[#b8860b]" />
+                    ) : plan.id === "pro" ? (
+                      <Zap className="h-6 w-6 text-[#b8860b]" />
+                    ) : (
+                      <Shield className="h-6 w-6 text-[#b8860b]" />
+                    )}
+                  </div>
+                  <h3 className="mb-1 font-[family-name:var(--font-display)] text-xl text-[#1c1917]">
+                    {plan.name}
+                  </h3>
+                  <p className="text-sm text-[#78716c]">{plan.description}</p>
+                </div>
+
+                <div className="mb-6">
+                  {plan.price !== null ? (
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-[family-name:var(--font-display)] text-4xl text-[#1c1917]">
+                        ${plan.price}
+                      </span>
+                      {plan.interval && (
+                        <span className="text-[#78716c]">/{plan.interval}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="font-[family-name:var(--font-display)] text-2xl text-[#1c1917]">
+                      Custom
+                    </span>
+                  )}
+                </div>
+
+                <ul className="mb-8 space-y-3">
+                  {plan.features.map((feature, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2d5a3d]/10">
+                        <Check className="h-3 w-3 text-[#2d5a3d]" strokeWidth={2.5} />
+                      </div>
+                      <span className="text-[#44403c]">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleSubscribe(plan)}
+                  disabled={loading === plan.id || sessionPending || isCurrentPlan(plan.id)}
+                  className={`group relative w-full overflow-hidden rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isCurrentPlan(plan.id)
+                      ? "border border-[#e7e5e4] bg-[#f5f5f4] text-[#78716c]"
+                      : plan.popular
+                        ? "bg-[#b8860b] text-white shadow-md hover:bg-[#8b6914] hover:shadow-lg"
+                        : plan.id === "free"
+                          ? "border border-[#2d5a3d]/30 bg-[#2d5a3d]/5 text-[#2d5a3d] hover:bg-[#2d5a3d]/10 hover:shadow-md"
+                          : "border border-[#635bff]/30 bg-[#635bff]/5 text-[#635bff] hover:bg-[#635bff]/10 hover:shadow-md"
+                  }`}
+                >
+                  {loading === plan.id ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : isCurrentPlan(plan.id) ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Check className="h-4 w-4" />
+                      Current plan
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      {plan.cta}
+                      {plan.popular && <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />}
+                    </span>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-4">
+            {SDK_PLANS.map((sdkPlan) => {
+              const Icon = sdkPlan.icon;
+              return (
+                <div
+                  key={sdkPlan.id}
+                  className={`relative rounded-xl border bg-white p-5 transition-all duration-200 ${
+                    sdkPlan.popular
+                      ? "border-[#635bff]/30 shadow-md"
+                      : "border-[#e7e5e4] hover:border-[#d6d3d1]"
+                  }`}
+                >
+                  {sdkPlan.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#635bff] px-3 py-0.5 text-xs font-medium text-white">
+                      Most Popular
+                    </div>
+                  )}
+
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#635bff]/10">
+                    <Icon className="h-5 w-5 text-[#635bff]" />
+                  </div>
+
+                  <h3 className="mb-1 font-[family-name:var(--font-display)] text-lg text-[#1c1917]">
+                    {sdkPlan.name}
+                  </h3>
+
+                  <div className="mb-4">
+                    <span className="font-[family-name:var(--font-display)] text-2xl text-[#1c1917]">
+                      ${sdkPlan.price}
+                    </span>
+                    <span className="text-sm text-[#78716c]">/month</span>
+                  </div>
+
+                  <ul className="mb-6 space-y-2">
+                    {sdkPlan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs">
+                        <Check className="mt-0.5 h-3 w-3 shrink-0 text-[#2d5a3d]" />
+                        <span className="text-[#44403c]">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={() => handleSDKLicensePurchase(sdkPlan.id)}
+                    disabled={loading === sdkPlan.id}
+                    className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      sdkPlan.popular
+                        ? "bg-[#635bff] text-white hover:bg-[#4f49cc]"
+                        : "border border-[#e7e5e4] bg-white text-[#1c1917] hover:bg-[#f5f5f4]"
+                    }`}
+                  >
+                    {loading === sdkPlan.id ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      sdkPlan.cta
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Quick Start Box */}
+            <div className="col-span-full mt-6 rounded-lg border border-[#e7e5e4] bg-white p-4">
+              <div className="flex items-start gap-3">
+                <Terminal className="mt-0.5 h-5 w-5 text-[#635bff]" />
+                <div>
+                  <h4 className="text-sm font-medium text-[#1c1917]">Quick Start with SDK</h4>
+                  <code className="mt-2 block rounded bg-[#1c1917] px-3 py-2 text-xs text-[#e7e5e4]">
+                    npm install @drew/billing-sdk<br />
+                    <span className="text-[#78716c]"># Set your license key</span><br />
+                    export DREW_BILLING_LICENSE_KEY=&quot;DREW-XXXX-XXXX-XXXX-XXXX&quot;
+                  </code>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
 
         {/* Trust Section */}
         <div className="mt-16 rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-8">
           <div className="grid gap-8 md:grid-cols-2">
             <div className="flex items-center justify-center md:justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src="/online-payment.svg" 
                 alt="Secure online payment" 

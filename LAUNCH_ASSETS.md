@@ -45,14 +45,14 @@ drew-billing-cli gives you everything:
 
 10 minutes. Not 3 weeks.
 
-billing.drew.dev
+monetize-two.vercel.app
 ```
 
 ### Tweet 4/7 (Demo)
 ```
 Live demo (no signup required):
 
-billing.drew.dev/try
+monetize-two.vercel.app/try
 
 See the exact checkout flow your customers will experience.
 
@@ -95,7 +95,7 @@ It's free. It's open source. No vendor lock-in.
 
 We use Stripe under the hood — we just handle the hard parts.
 
-Try the live demo → billing.drew.dev/try
+Try the live demo → monetize-two.vercel.app/try
 
 Or run this:
 npx drew-billing-cli init
@@ -120,7 +120,7 @@ So I built drew-billing-cli — a complete billing system with:
 - Automatic webhook handling (with idempotency + retries)
 - Usage-based billing built in
 
-**Live demo (no signup):** billing.drew.dev/try
+**Live demo (no signup):** monetize-two.vercel.app/try
 
 You can literally go from zero to accepting payments in 10 minutes. I have 3 example apps (SaaS, API billing, AI credits) that all deploy that fast.
 
@@ -157,7 +157,7 @@ What you get:
 - Usage-based billing out of the box
 - 3 complete example apps (SaaS, API billing, AI credits)
 
-Live demo: https://billing.drew.dev/try
+Live demo: https://monetize-two.vercel.app/try
 GitHub: https://github.com/drew/billing
 
 The demo lets you go through a full checkout flow (sandbox mode) to see exactly what your customers would experience.
@@ -198,7 +198,7 @@ What it includes:
 • Usage-based billing
 • 3 example apps (SaaS, API, AI credits)
 
-Live demo: billing.drew.dev/try
+Live demo: monetize-two.vercel.app/try
 
 Try it: npx drew-billing-cli init
 
@@ -239,7 +239,7 @@ You get:
 ✅ 3 complete example apps
 
 Try the live demo (no signup required):
-https://billing.drew.dev/try
+https://monetize-two.vercel.app/try
 
 The project is open source (MIT). No vendor lock-in — it uses Stripe under the hood, just handles the integration complexity for you.
 
@@ -268,7 +268,7 @@ Instead of spending 2-3 weeks building Stripe integration (database schemas, web
 • Usage-based billing built in
 • 3 complete example apps (SaaS, API billing, AI credits)
 
-Live demo: billing.drew.dev/try
+Live demo: monetize-two.vercel.app/try
 
 Open source (MIT). Uses Stripe under the hood — just handles the hard parts so you don't have to.
 ```
@@ -292,7 +292,7 @@ Just launched drew-billing-cli — a complete billing system for Next.js:
 ✅ 3 complete example apps
 
 The live demo lets you try a full checkout flow (no signup):
-billing.drew.dev/try
+monetize-two.vercel.app/try
 
 It's open source and uses Stripe under the hood — we just handle all the integration complexity.
 

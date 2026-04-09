@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 
 const billing = new BillingSDK({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || "https://monetize-two.vercel.app",
 })
 
 const isSandboxMode = process.env.NEXT_PUBLIC_BILLING_SANDBOX_MODE === "true"

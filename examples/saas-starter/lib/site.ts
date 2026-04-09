@@ -5,7 +5,7 @@ export const siteConfig: SiteConfig = {
   name: "SaaS Starter",
   eyebrow: "Subscription product",
   description: "A polished SaaS billing starter with subscription plans, entitlements, and a zero-friction sandbox flow.",
-  docsUrl: "https://billing.drew.dev/docs",
+  docsUrl: "/docs",
   githubUrl: "https://github.com/drewsephski/monetize",
   examplesUrl: "https://github.com/drewsephski/monetize/tree/main/examples/saas-starter",
   routes: [

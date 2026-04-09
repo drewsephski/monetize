@@ -163,7 +163,7 @@ export const telemetry = new TelemetryClient();
 export function enableTelemetry(endpoint?: string): boolean {
   telemetry.init({
     enabled: true,
-    endpoint: endpoint || "https://billing.drew.dev/api/internal",
+    endpoint: endpoint || "https://monetize-two.vercel.app/api/internal",
     sdkVersion: "1.0.0",
   });
   return true;

@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
       {
         error: "Missing or invalid API key.",
         message: "Use a `sandbox_key_*` credential while testing locally.",
-        docs: "https://billing.drew.dev/docs",
+        docs: "/docs",
         upgradeUrl: "/pricing",
       },
       { status: 401 }

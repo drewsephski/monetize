@@ -12,11 +12,81 @@ import { updateEnvFile } from "../utils/env.js";
 import { detectPackageManager, type PackageManager } from "../utils/package-manager.js";
 import { trackTiming, trackFunnel, FunnelStage } from "../utils/telemetry.js";
 import { promptForFeedback } from "../utils/feedback.js";
+import * as os from "os";
+
+// License validation for CLI monetization
+interface LicenseValidationResult {
+  valid: boolean;
+  license?: {
+    tier: "free" | "pro" | "team" | "enterprise";
+    features: string[];
+    usageLimits: Record<string, number>;
+  };
+  error?: string;
+}
+
+async function validateCLILicense(): Promise<LicenseValidationResult> {
+  const licenseKey = process.env.DREW_BILLING_LICENSE_KEY;
+  const billingApiUrl = process.env.BILLING_API_URL || "https://monetize-two.vercel.app";
+
+  if (!licenseKey) {
+    return {
+      valid: true, // Free tier - no license required
+      license: {
+        tier: "free",
+        features: ["basic_init", "community_support"],
+        usageLimits: { projects: 1, apiCalls: 100 },
+      },
+    };
+  }
+
+  try {
+    const response = await fetch(`${billingApiUrl}/api/license/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        licenseKey,
+        machineId: await generateMachineId(),
+        eventType: "cli_init",
+      }),
+    });
+
+    if (!response.ok) {
+      return { valid: false, error: `License validation failed: ${response.status}` };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch {
+    // Network error - allow with warning
+    return {
+      valid: true,
+      license: {
+        tier: "free",
+        features: ["basic_init"],
+        usageLimits: { projects: 1, apiCalls: 100 },
+      },
+    };
+  }
+}
+
+async function generateMachineId(): Promise<string> {
+  const data = `${process.platform}-${process.arch}-${os.hostname()}`;
+  // Simple hash
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16).padStart(16, "0");
+}
 
 interface InitOptions {
   skipStripe?: boolean;
   template?: string;
   yes?: boolean;
+  skipLicenseCheck?: boolean;
 }
 
 interface InitConfig {
@@ -39,6 +109,31 @@ interface InitResults {
 
 export async function initCommand(options: InitOptions) {
   console.log(chalk.blue.bold("\n⚡ drew-billing-cli init\n"));
+
+  // License check for CLI monetization
+  if (!options.skipLicenseCheck) {
+    const licenseSpinner = ora("Checking license...").start();
+    const licenseResult = await validateCLILicense();
+    licenseSpinner.stop();
+
+    if (!licenseResult.valid) {
+      console.log(chalk.red("\n❌ License invalid:"), licenseResult.error);
+      console.log(chalk.gray("\nGet a license at: https://monetize-two.vercel.app/pricing"));
+      console.log(chalk.gray("Set DREW_BILLING_LICENSE_KEY in your environment\n"));
+      process.exit(1);
+    }
+
+    // Display license tier
+    const tier = licenseResult.license?.tier || "free";
+    if (tier === "free") {
+      console.log(chalk.yellow("⚠️  Running on Free tier"));
+      console.log(chalk.gray("   Limited to 1 project. Upgrade for unlimited projects."));
+      console.log(chalk.gray("   https://monetize-two.vercel.app/pricing\n"));
+    } else {
+      console.log(chalk.green(`✅ ${tier.charAt(0).toUpperCase() + tier.slice(1)} license active`));
+      console.log(chalk.gray(`   Features: ${licenseResult.license?.features.join(", ")}\n`));
+    }
+  }
 
   // Track init started
   trackFunnel(FunnelStage.INIT_STARTED, { template: options.template });

@@ -5,7 +5,7 @@ export const siteConfig: SiteConfig = {
   name: "API Product",
   eyebrow: "Usage-based API",
   description: "An API billing example with sandbox-friendly checkout, API key creation, protected endpoints, and usage reporting.",
-  docsUrl: "https://billing.drew.dev/docs",
+  docsUrl: "/docs",
   githubUrl: "https://github.com/drewsephski/monetize",
   examplesUrl: "https://github.com/drewsephski/monetize/tree/main/examples/api-product",
   routes: [

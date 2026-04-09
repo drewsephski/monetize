@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const templateRoot = path.join(repoRoot, "packages", "cli", "templates");
 
-const DOCS_URL = "https://billing.drew.dev/docs";
+const DOCS_URL = "https://monetize-two.vercel.app/docs";
 const GITHUB_URL = "https://github.com/drewsephski/monetize";
 
 const examples = [

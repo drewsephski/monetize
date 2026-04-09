@@ -5,6 +5,7 @@ This document explains how the @drew/billing SDK monetization system works and h
 ## Overview
 
 The SDK supports **dual monetization**:
+
 1. **Hosted SaaS** - Customers use your billing API (what we just set up)
 2. **SDK Licenses** - Developers embed the SDK in their apps with license keys
 
@@ -25,7 +26,7 @@ The SDK supports **dual monetization**:
 import { BillingSDK } from "@drew/billing-sdk";
 
 const billing = new BillingSDK({
-  baseUrl: "https://api.drew.billing",
+  baseUrl: "https://monetize-two.vercel.app",
   license: {
     licenseKey: "DREW-XXXX-XXXX-XXXX-XXXX", // Customer's license key
   }
@@ -63,7 +64,7 @@ if (!usage.allowed) {
 Use the admin API to create licenses when customers purchase:
 
 ```bash
-curl -X POST https://api.drew.billing/api/license/create \
+curl -X POST https://monetize-two.vercel.app/api/license/create \
   -H "Authorization: Bearer <admin_api_key>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -75,6 +76,7 @@ curl -X POST https://api.drew.billing/api/license/create \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -101,11 +103,11 @@ export async function initCommand() {
   
   if (!licenseKey) {
     console.log("⚠️  No license key found. Running in free mode.");
-    console.log("   Get a license at: https://billing.drew.dev/pricing");
+    console.log("   Get a license at: https://monetize-two.vercel.app/pricing");
   }
   
   const billing = new BillingSDK({
-    baseUrl: process.env.BILLING_API_URL || "https://api.drew.billing",
+    baseUrl: process.env.BILLING_API_URL || "https://monetize-two.vercel.app",
     license: licenseKey ? { licenseKey } : undefined,
   });
   
@@ -123,7 +125,7 @@ export async function initCommand() {
   const hasAdvanced = await billing.licenseHasFeature("advanced_analytics");
   if (flags.advancedAnalytics && !hasAdvanced) {
     console.error("❌ Advanced analytics requires Pro license");
-    console.log("   Upgrade at: https://billing.drew.dev/pricing");
+    console.log("   Upgrade at: https://monetize-two.vercel.app/pricing");
     process.exit(1);
   }
   
@@ -177,6 +179,7 @@ License keys follow the pattern: `DREW-XXXX-XXXX-XXXX-XXXX`
 ## API Endpoints
 
 ### POST `/api/license/verify`
+
 Validate a license key.
 
 ```json
@@ -189,6 +192,7 @@ Validate a license key.
 ```
 
 ### POST `/api/license/create`
+
 Create a new license (admin only).
 
 ```json
@@ -263,6 +267,7 @@ curl -X POST http://localhost:3000/api/license/verify \
 ## Summary
 
 You now have a complete SDK monetization system:
+
 - **License validation** with tier-based feature access
 - **Usage tracking** to enforce limits
 - **Machine tracking** for license compliance

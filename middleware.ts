@@ -45,7 +45,7 @@ async function validateSession(request: NextRequest): Promise<boolean> {
   }
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for static assets and API routes
@@ -85,8 +85,8 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Configure matcher for Next.js proxy (v16+)
-export const proxyConfig = {
+// Configure matcher for Next.js middleware
+export const config = {
   matcher: [
     /*
      * Match all request paths except:

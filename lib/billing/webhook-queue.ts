@@ -1,10 +1,60 @@
 import { db } from "@/lib/db";
-import { webhookQueue, eventTimeline } from "@/drizzle/schema";
-import { eq, lte, and, or, sql } from "drizzle-orm";
-import { logger } from "@/lib/logger";
+import {
+  webhookQueue,
+  eventTimeline,
+  stripeEvents,
+  customers,
+} from "@/drizzle/schema";
+import { eq, lt, lte, and, or, sql } from "drizzle-orm";
+import { logger, createWebhookLogger } from "@/lib/logger";
+import { dispatchStripeEvent, isSupportedEventType } from "@/lib/billing/events";
+import { env } from "@/lib/env";
+import {
+  getRetryDelaySeconds,
+  toQueuedStripeEvent,
+  getStripeCustomerId,
+} from "@/lib/billing/webhook-queue-utils";
+import Stripe from "stripe";
 
 const MAX_ATTEMPTS = 5;
-const RETRY_DELAYS = [60, 300, 900, 3600, 7200]; // seconds: 1min, 5min, 15min, 1hr, 2hr
+const stripe = new Stripe(env.stripeSecretKey, {
+  apiVersion: "2026-03-25.dahlia",
+});
+
+async function recordDeadLetterTimeline(
+  stripeEventId: string,
+  eventType: string,
+  payload: unknown,
+  processingAttempts: number,
+  lastError: string
+): Promise<void> {
+  const stripeCustomerId = getStripeCustomerId(payload);
+  if (!stripeCustomerId) {
+    return;
+  }
+
+  const customer = await db.query.customers.findFirst({
+    columns: { id: true },
+    where: eq(customers.stripeCustomerId, stripeCustomerId),
+  });
+
+  if (!customer) {
+    return;
+  }
+
+  await db.insert(eventTimeline).values({
+    stripeEventId,
+    customerId: customer.id,
+    eventType,
+    source: "webhook_queue",
+    status: "error",
+    payload: payload as Record<string, unknown>,
+    processingAttempts,
+    lastError,
+    processedAt: new Date(),
+    metadata: { deadLettered: true },
+  });
+}
 
 /**
  * Enqueue a Stripe event for reliable processing.
@@ -64,6 +114,7 @@ export async function processWebhookQueue(batchSize: number = 10): Promise<{
         eventType: webhookQueue.eventType,
         payload: webhookQueue.payload,
         attempts: webhookQueue.attempts,
+        maxAttempts: webhookQueue.maxAttempts,
         lastError: webhookQueue.lastError,
       })
       .from(webhookQueue)
@@ -74,55 +125,168 @@ export async function processWebhookQueue(batchSize: number = 10): Promise<{
             eq(webhookQueue.status, "failed")
           ),
           lte(webhookQueue.nextAttemptAt, new Date()),
-          lte(webhookQueue.attempts, MAX_ATTEMPTS)
+          lt(webhookQueue.attempts, webhookQueue.maxAttempts)
         )
       )
       .limit(batchSize);
 
     for (const event of pendingEvents) {
-      try {
-        // Mark as processing
-        await db
-          .update(webhookQueue)
-          .set({
-            status: "processing",
-            attempts: event.attempts + 1,
-          })
-          .where(eq(webhookQueue.id, event.id));
+      const claimedRows = await db
+        .update(webhookQueue)
+        .set({
+          status: "processing",
+          attempts: event.attempts + 1,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(webhookQueue.id, event.id),
+            or(
+              eq(webhookQueue.status, "pending"),
+              eq(webhookQueue.status, "failed")
+            ),
+            eq(webhookQueue.attempts, event.attempts)
+          )
+        )
+        .returning({ id: webhookQueue.id });
 
-        // Process the event
-        // Note: This would call the actual event handler based on event type
-        // For now, we just log it - the real implementation would dispatch
-        // to the appropriate handler in lib/billing/events/
-        logger.info({
-          msg: "Processing queued event",
-          stripeEventId: event.stripeEventId,
-          eventType: event.eventType,
+      if (claimedRows.length === 0) {
+        continue;
+      }
+
+      const attemptNumber = event.attempts + 1;
+      const eventLogger = createWebhookLogger(event.stripeEventId, event.eventType);
+
+      try {
+        if (!isSupportedEventType(event.eventType)) {
+          eventLogger.warn({ eventType: event.eventType }, "Skipping unsupported queued event");
+
+          await db
+            .update(webhookQueue)
+            .set({
+              status: "completed",
+              processedAt: new Date(),
+              lastError: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(webhookQueue.id, event.id));
+
+          stats.processed++;
+          continue;
+        }
+
+        const existingEvent = await db.query.stripeEvents.findFirst({
+          columns: { processed: true },
+          where: eq(stripeEvents.id, event.stripeEventId),
         });
 
-        // Mark as completed
+        if (existingEvent?.processed) {
+          eventLogger.info("Queued event already processed, completing idempotently");
+
+          await db
+            .update(webhookQueue)
+            .set({
+              status: "completed",
+              processedAt: new Date(),
+              lastError: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(webhookQueue.id, event.id));
+
+          stats.processed++;
+          continue;
+        }
+
+        const stripeEvent = toQueuedStripeEvent(
+          event.stripeEventId,
+          event.eventType,
+          event.payload
+        );
+
+        await db.transaction(async (tx) => {
+          await tx
+            .insert(stripeEvents)
+            .values({
+              id: stripeEvent.id,
+              type: stripeEvent.type,
+              payload: stripeEvent,
+              processed: false,
+              attempts: attemptNumber,
+              lastError: null,
+              nextAttemptAt: null,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: stripeEvents.id,
+              set: {
+                type: stripeEvent.type,
+                payload: stripeEvent,
+                processed: false,
+                attempts: attemptNumber,
+                lastError: null,
+                nextAttemptAt: null,
+                updatedAt: new Date(),
+              },
+            });
+
+          await dispatchStripeEvent({
+            event: stripeEvent,
+            stripe,
+            tx,
+            logger: eventLogger,
+          });
+
+          await tx
+            .insert(stripeEvents)
+            .values({
+              id: stripeEvent.id,
+              type: stripeEvent.type,
+              payload: stripeEvent,
+              processed: true,
+              attempts: attemptNumber,
+              lastError: null,
+              nextAttemptAt: null,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: stripeEvents.id,
+              set: {
+                type: stripeEvent.type,
+                payload: stripeEvent,
+                processed: true,
+                attempts: attemptNumber,
+                lastError: null,
+                nextAttemptAt: null,
+                updatedAt: new Date(),
+              },
+            });
+        });
+
         await db
           .update(webhookQueue)
           .set({
             status: "completed",
             processedAt: new Date(),
+            lastError: null,
+            updatedAt: new Date(),
           })
           .where(eq(webhookQueue.id, event.id));
 
         stats.processed++;
 
-        logger.info({
+        eventLogger.info({
           msg: "Webhook queue event processed successfully",
           stripeEventId: event.stripeEventId,
           eventType: event.eventType,
-          attempt: event.attempts + 1,
+          attempt: attemptNumber,
         });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        const nextAttempt = event.attempts + 1;
+        const nextAttempt = attemptNumber;
+        const maxAttempts = event.maxAttempts || MAX_ATTEMPTS;
 
-        if (nextAttempt >= MAX_ATTEMPTS) {
+        if (nextAttempt >= maxAttempts) {
           // Dead letter - max retries exceeded
           await db
             .update(webhookQueue)
@@ -130,8 +294,34 @@ export async function processWebhookQueue(batchSize: number = 10): Promise<{
               status: "dead_letter",
               lastError: errorMessage.substring(0, 1000),
               deadLetterAt: new Date(),
+              updatedAt: new Date(),
             })
             .where(eq(webhookQueue.id, event.id));
+
+          await db
+            .insert(stripeEvents)
+            .values({
+              id: event.stripeEventId,
+              type: event.eventType,
+              payload: event.payload as Record<string, unknown>,
+              processed: false,
+              attempts: nextAttempt,
+              lastError: errorMessage.substring(0, 1000),
+              nextAttemptAt: null,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: stripeEvents.id,
+              set: {
+                type: event.eventType,
+                payload: event.payload as Record<string, unknown>,
+                processed: false,
+                attempts: nextAttempt,
+                lastError: errorMessage.substring(0, 1000),
+                nextAttemptAt: null,
+                updatedAt: new Date(),
+              },
+            });
 
           stats.deadLettered++;
 
@@ -143,21 +333,16 @@ export async function processWebhookQueue(batchSize: number = 10): Promise<{
             error: errorMessage,
           });
 
-          // Add to event timeline for debugging
-          await db.insert(eventTimeline).values({
-            stripeEventId: event.stripeEventId,
-            customerId: "00000000-0000-0000-0000-000000000000", // System/unknown customer
-            eventType: event.eventType,
-            source: "webhook_queue",
-            status: "error",
-            payload: event.payload as Record<string, unknown>,
-            processingAttempts: nextAttempt,
-            lastError: errorMessage.substring(0, 1000),
-            metadata: { deadLettered: true },
-          });
+          await recordDeadLetterTimeline(
+            event.stripeEventId,
+            event.eventType,
+            event.payload,
+            nextAttempt,
+            errorMessage.substring(0, 1000)
+          );
         } else {
           // Schedule retry
-          const delaySeconds = RETRY_DELAYS[nextAttempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
+          const delaySeconds = getRetryDelaySeconds(nextAttempt);
           const nextAttemptAt = new Date(Date.now() + delaySeconds * 1000);
 
           await db
@@ -167,8 +352,34 @@ export async function processWebhookQueue(batchSize: number = 10): Promise<{
               attempts: nextAttempt,
               lastError: errorMessage.substring(0, 1000),
               nextAttemptAt,
+              updatedAt: new Date(),
             })
             .where(eq(webhookQueue.id, event.id));
+
+          await db
+            .insert(stripeEvents)
+            .values({
+              id: event.stripeEventId,
+              type: event.eventType,
+              payload: event.payload as Record<string, unknown>,
+              processed: false,
+              attempts: nextAttempt,
+              lastError: errorMessage.substring(0, 1000),
+              nextAttemptAt,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: stripeEvents.id,
+              set: {
+                type: event.eventType,
+                payload: event.payload as Record<string, unknown>,
+                processed: false,
+                attempts: nextAttempt,
+                lastError: errorMessage.substring(0, 1000),
+                nextAttemptAt,
+                updatedAt: new Date(),
+              },
+            });
 
           stats.failed++;
 

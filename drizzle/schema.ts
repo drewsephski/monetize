@@ -8,6 +8,7 @@ import {
   integer,
   index,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable(
   "users",
@@ -796,3 +797,30 @@ export const entitlementsCache = pgTable(
     expiresAtIdx: index("entitlements_cache_expires_at_idx").on(table.expiresAt),
   })
 );
+
+// ============================================================================
+// RELATIONS
+// ============================================================================
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  plan: one(plans, {
+    fields: [subscriptions.planId],
+    references: [plans.id],
+  }),
+  customer: one(customers, {
+    fields: [subscriptions.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const plansRelations = relations(plans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
+export const customersRelations = relations(customers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [customers.userId],
+    references: [users.id],
+  }),
+  subscriptions: many(subscriptions),
+}));

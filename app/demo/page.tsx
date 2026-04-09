@@ -18,21 +18,28 @@ import {
   Terminal,
   User,
   LogIn,
+  AlertCircle,
+  Info,
 } from "lucide-react"
 
 const billing = new BillingSDK({
   baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
 })
 
+const isSandboxMode = process.env.NEXT_PUBLIC_BILLING_SANDBOX_MODE === "true"
+const defaultPriceId = isSandboxMode ? "price_test" : (process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "")
+
 export default function DemoPage() {
   const { data: session } = authClient.useSession()
   const [userId, setUserId] = useState(() => crypto.randomUUID())
-  const [priceId, setPriceId] = useState("price_test")
+  const [priceId, setPriceId] = useState(defaultPriceId)
   const [loading, setLoading] = useState<string | null>(null)
   const [result, setResult] = useState<string>("")
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   const handleCheckout = async () => {
     setLoading("checkout")
+    setCheckoutError(null)
     try {
       const url = await billing.createCheckout({
         priceId,
@@ -42,9 +49,15 @@ export default function DemoPage() {
       })
       window.location.href = url
     } catch (err) {
-      setResult(
-        `Error: ${err instanceof Error ? err.message : "Unknown error"}`
-      )
+      const errorMsg = err instanceof Error ? err.message : "Unknown error"
+      if (errorMsg.includes("No such price")) {
+        setCheckoutError("Invalid Price ID. Get one from your Stripe Dashboard → Products, or enable sandbox mode.")
+      } else if (errorMsg.includes("product is not active")) {
+        setCheckoutError("This Stripe product is inactive. Activate it in your Stripe Dashboard → Products, or use sandbox mode.")
+      } else {
+        setCheckoutError(errorMsg)
+      }
+      setResult(`Error: ${errorMsg}`)
     } finally {
       setLoading(null)
     }
@@ -107,7 +120,7 @@ export default function DemoPage() {
     {
       id: "checkout",
       label: "Create Checkout",
-      description: "Stripe checkout session",
+      description: isSandboxMode ? "Simulated checkout (no real charges)" : "Stripe checkout session",
       icon: CreditCard,
       action: handleCheckout,
       primary: true,
@@ -211,6 +224,23 @@ export default function DemoPage() {
           {/* Left: Configuration */}
           <div className="lg:col-span-4">
             <div className="sticky top-32 space-y-6">
+              {/* Sandbox Mode Banner */}
+              {isSandboxMode && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                      <Info className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-amber-900">Sandbox Mode</h3>
+                      <p className="text-sm text-amber-700">
+                        Testing without real Stripe charges. Use any price ID like <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">price_test</code>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="shadow-subtle rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-6">
                 <div className="mb-4 flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#e7e5e4] bg-white shadow-sm">
@@ -258,7 +288,7 @@ export default function DemoPage() {
                       </label>
                       <span
                         className="help-tooltip"
-                        data-tip="Your Stripe Price ID (starts with price_). You can find this in your Stripe Dashboard under Products."
+                        data-tip={isSandboxMode ? "In sandbox mode, any value works (e.g., price_test)" : "Your Stripe Price ID (starts with price_). Get it from Stripe Dashboard → Products."}
                       >
                         ?
                       </span>
@@ -266,13 +296,25 @@ export default function DemoPage() {
                     <input
                       type="text"
                       value={priceId}
-                      onChange={(e) => setPriceId(e.target.value)}
-                      placeholder="price_..."
-                      className="w-full rounded-lg border border-[#e7e5e4] bg-white px-3 py-2.5 font-mono text-sm text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] focus:border-[#b8860b] focus:ring-2 focus:ring-[#b8860b]/15 focus:outline-none"
+                      onChange={(e) => {
+                        setPriceId(e.target.value)
+                        setCheckoutError(null)
+                      }}
+                      placeholder={isSandboxMode ? "price_test" : "price_..."}
+                      className={`w-full rounded-lg border bg-white px-3 py-2.5 font-mono text-sm text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] focus:border-[#b8860b] focus:ring-2 focus:ring-[#b8860b]/15 focus:outline-none ${
+                        checkoutError ? "border-red-300 focus:border-red-500 focus:ring-red-200" : "border-[#e7e5e4]"
+                      }`}
                     />
-                    <p className="mt-1.5 text-xs text-[#78716c]">
-                      From your Stripe Dashboard → Products
-                    </p>
+                    {checkoutError ? (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                        <AlertCircle className="h-3 w-3" />
+                        {checkoutError}
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-[#78716c]">
+                        {isSandboxMode ? "Any value works in sandbox mode" : "From your Stripe Dashboard → Products"}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -289,12 +331,31 @@ export default function DemoPage() {
                       localhost:3000
                     </code>
                   </div>
+                  <div className="flex items-center justify-between border-b border-[#f5f5f4] py-2">
+                    <span className="text-[#78716c]">Mode</span>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      isSandboxMode ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${isSandboxMode ? "bg-amber-500" : "bg-green-500"}`} />
+                      {isSandboxMode ? "Sandbox" : "Live"}
+                    </span>
+                  </div>
                   <div className="flex items-center justify-between py-2">
                     <span className="text-[#78716c]">Version</span>
                     <span className="font-medium text-[#1c1917]">v1</span>
                   </div>
                 </div>
               </div>
+
+              {/* How to enable sandbox */}
+              {!isSandboxMode && (
+                <div className="rounded-lg border border-dashed border-[#d6d3d1] bg-white p-4">
+                  <p className="text-xs text-[#78716c]">
+                    <strong className="text-[#44403c]">Testing without Stripe?</strong><br />
+                    Run with <code className="rounded bg-[#fafaf9] px-1 py-0.5 text-[10px]">BILLING_SANDBOX_MODE=true npm run dev</code>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -314,7 +375,7 @@ export default function DemoPage() {
                       disabled={loading !== null}
                       className={`group relative flex items-start gap-4 rounded-xl border p-5 text-left transition-all duration-200 ${
                         action.primary
-                          ? "shadow-elevated btn-interactive border-[#635bff] bg-[#b8860b] text-white hover:border-[#5244e3] hover:bg-[#8b6914]"
+                          ? "shadow-elevated btn-interactive border-[#b8860b]/30 bg-[#b8860b] text-white hover:border-[#8b6914] hover:bg-[#8b6914]"
                           : "btn-secondary-modern hover:border-[#b8860b]/30"
                       } ${loading !== null && !isLoading ? "opacity-50" : ""}`}
                     >

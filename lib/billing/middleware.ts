@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { sql } from "drizzle-orm";
 import { cache } from "react";
 
@@ -12,6 +13,18 @@ interface EntitlementCheck {
   plan?: string | string[];
   feature?: string;
   requireActive?: boolean;
+}
+
+interface SessionLike {
+  user?: {
+    id?: string;
+  };
+}
+
+interface ExtractUserIdOptions {
+  getSession?: (headers: Headers) => Promise<SessionLike | null>;
+  allowHeaderFallback?: boolean;
+  internalAuthSecret?: string;
 }
 
 /**
@@ -245,32 +258,37 @@ export function compose(...middlewares: Array<(req: NextRequest, ctx: Middleware
 
 /**
  * Get userId from various auth sources
- * Supports: Bearer tokens, session cookies, custom headers
+ * Supports: Better Auth bearer tokens, session cookies, and optional trusted headers
  */
-export async function extractUserId(request: NextRequest): Promise<string | null> {
-  // Try Bearer token
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    // Verify and decode JWT
-    const token = authHeader.slice(7);
-      // TODO: Implement JWT verification
-      // For now, return the token prefix as placeholder
-      return token.slice(0, 8);
+export async function extractUserId(
+  request: NextRequest,
+  options: ExtractUserIdOptions = {}
+): Promise<string | null> {
+  const getSession =
+    options.getSession ??
+    (async (headers: Headers) =>
+      auth.api.getSession({
+        headers,
+      }));
+
+  const session = await getSession(request.headers);
+
+  if (session?.user?.id) {
+    return session.user.id;
   }
 
-    // Try session cookie (Better Auth)
-    const sessionCookie = request.cookies.get("better-auth.session")?.value;
-    if (sessionCookie) {
-      // Decode session to get userId
-      // This would integrate with Better Auth session validation
-      // For now, return null to indicate we need proper auth
-      return null;
-    }
+  // Header fallback is opt-in and requires a shared secret for trusted internal callers.
+  const allowHeaderFallback =
+    options.allowHeaderFallback ?? process.env.BILLING_ALLOW_HEADER_USER_ID === "true";
+  const internalAuthSecret =
+    options.internalAuthSecret ?? process.env.BILLING_INTERNAL_AUTH_SECRET;
 
-  // Try custom header for internal API calls
-  const userIdHeader = request.headers.get("x-user-id");
-  if (userIdHeader) {
-    return userIdHeader;
+  if (allowHeaderFallback && internalAuthSecret) {
+    const userIdHeader = request.headers.get("x-user-id");
+    const internalAuthHeader = request.headers.get("x-internal-auth");
+    if (userIdHeader && internalAuthHeader === internalAuthSecret) {
+      return userIdHeader;
+    }
   }
 
   return null;

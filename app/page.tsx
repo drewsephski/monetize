@@ -19,7 +19,7 @@ import {
   Database,
   Webhook,
 } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 function useScrollReveal() {
   const ref = useRef<HTMLDivElement>(null)
@@ -53,6 +53,13 @@ export default function Page() {
   const howItWorksRef = useScrollReveal()
   const comparisonRef = useScrollReveal()
   const featuresRef = useScrollReveal()
+  const [copiedText, setCopiedText] = useState<string | null>(null)
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedText(text)
+    setTimeout(() => setCopiedText(null), 2000)
+  }
 
   return (
     <main className="min-h-screen bg-white">
@@ -119,7 +126,7 @@ export default function Page() {
 
             {/* Subtext */}
             <p className="mb-10 max-w-2xl text-lg leading-relaxed text-[#57534e] lg:text-xl">
-              Complete billing system for Next.js. CLI setup, pre-built components, 
+              Complete billing system for Next.js. CLI setup, pre-built components,
               and automatic webhook handling. Stop wrestling with Stripe docs.
             </p>
 
@@ -132,17 +139,25 @@ export default function Page() {
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
                 </Button>
               </Link>
-              <Button
-                variant="outline"
-                className="border-[#e2ddd5] px-8 py-6 text-lg font-medium text-[#1c1917] transition-all duration-200 hover:border-[#c4bdb0] hover:bg-[#faf7f4]"
-                onClick={() => {
-                  navigator.clipboard.writeText("npx drew-billing-cli init")
-                }}
+              <button
+                onClick={() => copyToClipboard("npx drew-billing-cli init")}
+                className="group relative flex items-center gap-3 overflow-hidden rounded-xl border border-[#e7e5e4] bg-white px-4 py-1 font-mono text-sm font-medium text-[#44403c] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#d4d4d8] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98]"
               >
-                <Terminal className="mr-2 h-5 w-5" />
-                npx drew-billing-cli init
-                <Copy className="ml-2 h-4 w-4 text-[#a8a29e]" />
-              </Button>
+                <span className="absolute inset-0 bg-gradient-to-r from-[#fafaf9] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#fafaf9] text-[#78716c] ring-1 ring-[#e7e5e4] transition-all duration-300 group-hover:bg-[#f5f5f4] group-hover:text-[#57534e] group-hover:ring-[#d4d4d8]">
+                  <Terminal className="h-4 w-4" />
+                </span>
+                <span className="relative tracking-tight">npx drew-billing-cli init</span>
+                <span className="relative ml-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300">
+                  {copiedText === "npx drew-billing-cli init" ? (
+                    <span className="absolute inset-0 rounded-full bg-[#dcfce7] ring-1 ring-[#86efac]/50 animate-in zoom-in-50 duration-200">
+                      <Check className="absolute inset-0 m-auto h-3.5 w-3.5 text-[#16a34a]" />
+                    </span>
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-[#a8a29e] transition-all duration-300 group-hover:text-[#78716c] group-hover:scale-105" />
+                  )}
+                </span>
+              </button>
             </div>
 
             {/* Trust badges */}
@@ -168,27 +183,51 @@ export default function Page() {
 
           {/* Code Block - Centered Below */}
           <div className="mt-16 mx-auto max-w-3xl">
-            <div className="shadow-elevated code-block relative overflow-hidden rounded-xl bg-[#1c1917] border border-[#292524]">
-              <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-[#ef4444]" />
-                    <div className="h-3 w-3 rounded-full bg-[#eab308]" />
-                    <div className="h-3 w-3 rounded-full bg-[#22c55e]" />
+            <div className="group relative overflow-hidden rounded-xl bg-[#141210] shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_1px_rgba(0,0,0,0.2)] ring-1 ring-[#292524] transition-all duration-500 hover:shadow-[0_12px_40px_rgba(0,0,0,0.15),0_0_1px_rgba(0,0,0,0.2)]">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#b8860b]/30 to-transparent" />
+              <div className="flex items-center justify-between border-b border-[#292524] bg-[#1c1917]/50 px-4 py-3.5 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-2">
+                    <div className="h-3 w-3 rounded-full bg-[#ef4444]/80 ring-1 ring-[#ef4444]/20" />
+                    <div className="h-3 w-3 rounded-full bg-[#eab308]/80 ring-1 ring-[#eab308]/20" />
+                    <div className="h-3 w-3 rounded-full bg-[#22c55e]/80 ring-1 ring-[#22c55e]/20" />
                   </div>
-                  <span className="ml-3 font-mono text-xs text-[#a8a29e]">
-                    terminal
-                  </span>
+                  <div className="ml-2 flex items-center gap-2 rounded-md bg-[#292524]/50 px-2 py-1">
+                    <Terminal className="h-3 w-3 text-[#78716c]" />
+                    <span className="font-mono text-xs text-[#78716c]">terminal</span>
+                  </div>
                 </div>
-                <span className="text-xs text-[#a8a29e]">bash</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-[#b8860b]/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-[#b8860b]">bash</span>
+                </div>
               </div>
-              <div className="p-5 font-mono text-sm leading-relaxed">
-                <div className="text-[#a8a29e]">$ npx drew-billing-cli init</div>
-                <div className="mt-2 text-[#22c55e]">✓ Detected: Next.js 14</div>
-                <div className="text-[#22c55e]">✓ Dependencies installed</div>
-                <div className="text-[#22c55e]">✓ Database configured</div>
-                <div className="text-[#22c55e]">✓ Templates ready</div>
-                <div className="mt-3 text-[#d97706]">→ Visit http://localhost:3000/pricing</div>
+              <div className="relative p-5 font-mono text-sm leading-relaxed">
+                <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#b8860b]/20 via-transparent to-transparent" />
+                <div className="text-[#a8a29e]">
+                  <span className="text-[#78716c]">$</span> npx drew-billing-cli init
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex items-center gap-2 text-[#4ade80]">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#22c55e]/10 text-[10px]">✓</span>
+                    <span>Detected: Next.js 16</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#4ade80]">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#22c55e]/10 text-[10px]">✓</span>
+                    <span>Dependencies installed</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#4ade80]">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#22c55e]/10 text-[10px]">✓</span>
+                    <span>Database configured</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#4ade80]">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#22c55e]/10 text-[10px]">✓</span>
+                    <span>Templates ready</span>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-[#f59e0b]">
+                  <span className="text-[#b8860b]">→</span>
+                  <span>Visit http://localhost:3000/pricing</span>
+                </div>
               </div>
             </div>
           </div>
@@ -302,9 +341,19 @@ export default function Page() {
                 <p className="mb-4 text-[#57534e]">
                   One command detects your framework, installs dependencies, and sets up your database.
                 </p>
-                <div className="rounded-lg bg-[#1c1917] p-4 font-mono text-sm text-[#a8a29e]">
-                  $ npx drew-billing-cli init
-                </div>
+                <button
+                  onClick={() => copyToClipboard("npx drew-billing-cli init")}
+                  className="group relative flex w-3/8 items-center justify-between overflow-hidden rounded-lg bg-[#1c1917] p-4 font-mono text-sm text-[#a8a29e] transition-all duration-200 hover:bg-[#252220]"
+                >
+                  <span>$ npx drew-billing-cli init</span>
+                  <span className="relative flex h-7 w-7 items-center justify-center rounded-md bg-[#292524]/50 transition-all duration-200 group-hover:bg-[#363230]">
+                    {copiedText === "npx drew-billing-cli init" ? (
+                      <Check className="h-3.5 w-3.5 text-[#22c55e] animate-in zoom-in-50 duration-200" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 text-[#78716c] transition-all duration-200 group-hover:text-[#a8a29e]" />
+                    )}
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -350,7 +399,7 @@ export default function Page() {
                 <p className="mb-4 text-[#57534e]">
                   Pre-built components ready to customize. Deploy and start accepting payments.
                 </p>
-                <div className="rounded-lg border border-[#22c55e]/20 bg-[#22c55e]/5 px-4 py-3 text-sm text-[#15803d]">
+                <div className="text-center w-2/7 rounded-lg border border-[#22c55e]/20 bg-[#22c55e]/5 px-4 py-3 text-sm text-[#15803d]">
                   ✓ Visit /pricing — you&apos;re live!
                 </div>
               </div>
@@ -469,27 +518,30 @@ export default function Page() {
                   </span>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between rounded-lg border border-[#e7e5e4]/60 bg-white px-4 py-3 transition-colors duration-200 hover:border-[#635bff]/20">
-                    <span className="font-mono text-sm text-[#78716c]">
-                      checkout.session.completed
-                    </span>
-                    <span className="rounded-full bg-[#4a7c59]/10 px-2 py-1 text-xs font-medium text-[#059669]">
+                  <div className="group flex items-center justify-between rounded-lg border border-[#e7e5e4] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#b8860b]/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#dcfce7] text-[10px] font-bold text-[#16a34a]">✓</span>
+                      <span className="font-mono text-sm text-[#44403c]">checkout.session.completed</span>
+                    </div>
+                    <span className="rounded-full bg-[#dcfce7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#16a34a]">
                       processed
                     </span>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-[#e7e5e4]/60 bg-white px-4 py-3 transition-colors duration-200 hover:border-[#635bff]/20">
-                    <span className="font-mono text-sm text-[#78716c]">
-                      customer.subscription.updated
-                    </span>
-                    <span className="rounded-full bg-[#4a7c59]/10 px-2 py-1 text-xs font-medium text-[#059669]">
+                  <div className="group flex items-center justify-between rounded-lg border border-[#e7e5e4] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#b8860b]/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#dcfce7] text-[10px] font-bold text-[#16a34a]">✓</span>
+                      <span className="font-mono text-sm text-[#44403c]">customer.subscription.updated</span>
+                    </div>
+                    <span className="rounded-full bg-[#dcfce7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#16a34a]">
                       processed
                     </span>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-[#e7e5e4]/60 bg-white px-4 py-3 transition-colors duration-200 hover:border-[#635bff]/20">
-                    <span className="font-mono text-sm text-[#78716c]">
-                      invoice.payment_failed
-                    </span>
-                    <span className="rounded-full bg-[#f59e0b]/10 px-2 py-1 text-xs font-medium text-[#d97706]">
+                  <div className="group flex items-center justify-between rounded-lg border border-[#e7e5e4] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#b8860b]/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#fef3c7] text-[10px] font-bold text-[#d97706]">↻</span>
+                      <span className="font-mono text-sm text-[#44403c]">invoice.payment_failed</span>
+                    </div>
+                    <span className="rounded-full bg-[#fef3c7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#d97706]">
                       retry #2
                     </span>
                   </div>
@@ -501,16 +553,26 @@ export default function Page() {
           {/* Feature 2: SDK */}
           <div className="mb-24 grid items-center gap-16 lg:mb-32 lg:grid-cols-2 lg:gap-24">
             <div>
-              <div className="shadow-elevated code-block card-interactive overflow-hidden rounded-xl bg-[#0f172a]">
-                <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-5 py-3.5">
-                  <div className="flex items-center gap-2 font-mono text-xs text-slate-400">
-                    <span className="text-[#b8860b]">➜</span>
-                    <span className="text-[#f8fafc]">
-                      npm install @drew/billing
-                    </span>
+              <div className="group relative overflow-hidden rounded-xl bg-[#141210] shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_1px_rgba(0,0,0,0.2)] ring-1 ring-[#292524] transition-all duration-500 hover:shadow-[0_12px_40px_rgba(0,0,0,0.15),0_0_1px_rgba(0,0,0,0.2)]">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#b8860b]/30 to-transparent" />
+                <div className="flex items-center justify-between border-b border-[#292524] bg-[#1c1917]/50 px-5 py-3.5 backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-md bg-[#292524]/50 px-2.5 py-1">
+                      <Terminal className="h-3 w-3 text-[#78716c]" />
+                      <span className="font-mono text-xs text-[#78716c]">npm</span>
+                    </div>
+                    <span className="font-mono text-xs text-[#a8a29e]">install @drew/billing</span>
                   </div>
-                  <button className="rounded p-1 text-slate-400 transition-colors duration-200 hover:bg-white/10 hover:text-[#f8fafc]">
-                    <Copy className="h-4 w-4" />
+                  <button
+                    onClick={() => copyToClipboard("npm install @drew/billing")}
+                    className="group/copy relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-[#1c1917]/60 text-[#a8a29e] ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-[#292524]/80 hover:text-[#f5f5f4] hover:ring-[#b8860b]/30 hover:shadow-[0_0_12px_rgba(184,134,11,0.15)] active:scale-95"
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-br from-[#b8860b]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/copy:opacity-100" />
+                    {copiedText === "npm install @drew/billing" ? (
+                      <Check className="relative h-4 w-4 text-[#22c55e] animate-in zoom-in-50 duration-200" />
+                    ) : (
+                      <Copy className="relative h-4 w-4 transition-transform duration-300 group-hover/copy:scale-105" />
+                    )}
                   </button>
                 </div>
                 <div className="overflow-x-auto p-6 leading-relaxed">
@@ -588,7 +650,7 @@ export default function Page() {
               </p>
 
               {/* User-friendly feature highlights */}
-              <div className="mb-6 space-y-3">
+              <div className="mb-6 space-y-2.5">
                 {[
                   {
                     label: "Install in seconds",
@@ -608,16 +670,16 @@ export default function Page() {
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] p-3"
+                    className="group flex items-start gap-3 rounded-lg border border-[#e7e5e4] bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#b8860b]/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#4a7c59]/10">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#dcfce7] ring-1 ring-[#86efac]/20 transition-all duration-300 group-hover:bg-[#bbf7d0] group-hover:ring-[#4ade80]/30">
                       <item.icon
-                        className="h-4 w-4 text-[#4a7c59]"
+                        className="h-4 w-4 text-[#16a34a]"
                         strokeWidth={2.5}
                       />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-[#1c1917]">
+                      <div className="text-sm font-semibold text-[#1c1917]">
                         {item.label}
                       </div>
                       <div className="text-xs text-[#78716c]">{item.desc}</div>
@@ -644,15 +706,15 @@ export default function Page() {
                 Failed webhooks don&apos;t mean lost data. Our retry system runs
                 every 5 minutes with exponential backoff up to 5 attempts.
               </p>
-              <div className="shadow-subtle flex items-center gap-4 rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#b8860b]/10">
+              <div className="flex items-center gap-4 rounded-xl border border-[#e7e5e4] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#b8860b]/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#fef3c7] ring-1 ring-[#fcd34d]/30">
                   <RefreshCw
-                    className="h-6 w-6 text-[#b8860b]"
+                    className="h-6 w-6 text-[#d97706]"
                     strokeWidth={1.5}
                   />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-[#1c1917]">
+                  <div className="text-sm font-semibold text-[#1c1917]">
                     Vercel Cron
                   </div>
                   <div className="mt-0.5 font-mono text-xs text-[#78716c]">
@@ -662,44 +724,49 @@ export default function Page() {
               </div>
             </div>
             <div className="order-1 lg:order-2">
-              <div className="shadow-subtle rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-6">
+              <div className="rounded-xl border border-[#e7e5e4] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                 <div className="mb-6 flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#1c1917]">
-                    Retry Queue
-                  </span>
-                  <span className="rounded-full border border-[#e7e5e4]/60 bg-white px-2 py-1 text-xs text-[#78716c]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#fef3c7] ring-1 ring-[#fcd34d]/30">
+                      <RefreshCw className="h-3.5 w-3.5 text-[#d97706]" />
+                    </div>
+                    <span className="text-sm font-semibold text-[#1c1917]">
+                      Retry Queue
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-[#fafaf9] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#78716c] ring-1 ring-[#e7e5e4]">
                     Max 5 attempts
                   </span>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-20 text-xs font-medium text-[#78716c]">
+                    <div className="w-20 text-xs font-semibold text-[#78716c]">
                       Attempt 1
                     </div>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e7e5e4]">
-                      <div className="h-full w-full rounded-full bg-[#ef4444]" />
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#f5f5f4] ring-1 ring-[#e7e5e4]">
+                      <div className="h-full w-full rounded-full bg-gradient-to-r from-[#ef4444] to-[#f87171] shadow-sm" />
                     </div>
-                    <span className="text-xs font-medium text-[#ef4444]">
+                    <span className="rounded-full bg-[#fef2f2] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#dc2626] ring-1 ring-[#fecaca]">
                       Failed
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="w-20 text-xs font-medium text-[#78716c]">
+                    <div className="w-20 text-xs font-semibold text-[#78716c]">
                       Attempt 2
                     </div>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e7e5e4]">
-                      <div className="h-full w-full animate-pulse rounded-full bg-[#f59e0b]" />
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#f5f5f4] ring-1 ring-[#e7e5e4]">
+                      <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-[#f59e0b] to-[#fbbf24] shadow-sm" />
                     </div>
-                    <span className="text-xs font-medium text-[#d97706]">
+                    <span className="rounded-full bg-[#fef3c7] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#b45309] ring-1 ring-[#fcd34d]">
                       Retrying...
                     </span>
                   </div>
                   <div className="flex items-center gap-4 opacity-50">
-                    <div className="w-20 text-xs font-medium text-[#78716c]">
+                    <div className="w-20 text-xs font-semibold text-[#78716c]">
                       Attempt 3
                     </div>
-                    <div className="h-2 flex-1 rounded-full bg-[#e7e5e4]" />
-                    <span className="text-xs font-medium text-[#78716c]">
+                    <div className="h-2.5 flex-1 rounded-full bg-[#f5f5f4] ring-1 ring-[#e7e5e4]" />
+                    <span className="rounded-full bg-[#fafaf9] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#78716c] ring-1 ring-[#e7e5e4]">
                       Pending
                     </span>
                   </div>
@@ -801,17 +868,25 @@ export default function Page() {
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Button>
             </Link>
-            <Button
-              variant="outline"
-              className="border-[#e7e5e4] px-8 py-6 text-base font-medium text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] hover:bg-[#fafaf9]"
-              onClick={() => {
-                navigator.clipboard.writeText("npx drew-billing-cli init")
-              }}
+            <button
+              onClick={() => copyToClipboard("npx drew-billing-cli init")}
+              className="group relative flex items-center gap-3 overflow-hidden rounded-xl border border-[#e7e5e4] bg-white px-4 py-1 text-sm font-semibold text-[#44403c] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-[#d4d4d8] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98]"
             >
-              <Terminal className="mr-2 h-4 w-4" />
-              Copy Install Command
-              <Copy className="ml-2 h-4 w-4 text-[#a8a29e]" />
-            </Button>
+              <span className="absolute inset-0 bg-gradient-to-r from-[#fafaf9] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#fafaf9] text-[#78716c] ring-1 ring-[#e7e5e4] transition-all duration-300 group-hover:bg-[#f5f5f4] group-hover:text-[#57534e] group-hover:ring-[#d4d4d8]">
+                <Terminal className="h-4 w-4" />
+              </span>
+              <span className="relative tracking-tight">Copy Install Command</span>
+              <span className="relative ml-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300">
+                {copiedText === "npx drew-billing-cli init" ? (
+                  <span className="absolute inset-0 rounded-full bg-[#dcfce7] ring-1 ring-[#86efac]/50 animate-in zoom-in-50 duration-200">
+                    <Check className="absolute inset-0 m-auto h-3.5 w-3.5 text-[#16a34a]" />
+                  </span>
+                ) : (
+                  <Copy className="h-3.5 w-3.5 text-[#a8a29e] transition-all duration-300 group-hover:text-[#78716c] group-hover:scale-105" />
+                )}
+              </span>
+            </button>
           </div>
         </div>
       </section>

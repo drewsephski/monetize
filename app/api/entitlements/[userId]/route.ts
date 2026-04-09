@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { customers, subscriptions } from "@/drizzle/schema";
+import { customers, subscriptions, plans } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { createRequestLogger } from "@/lib/logger";
 
@@ -72,13 +72,25 @@ export async function GET(
     }> = [];
 
     if (customer) {
+      // Query subscriptions and plans separately to avoid relation issues
       const subs = await db.query.subscriptions.findMany({
         where: eq(subscriptions.customerId, customer.id),
-        with: {
-          plan: true,
-        },
       });
-      customerSubscriptions = subs as typeof customerSubscriptions;
+      
+      // Fetch plan details for each subscription
+      const subsWithPlans = await Promise.all(
+        subs.map(async (sub) => {
+          if (sub.planId) {
+            const plan = await db.query.plans.findFirst({
+              where: eq(plans.id, sub.planId),
+            });
+            return { ...sub, plan };
+          }
+          return { ...sub, plan: null };
+        })
+      );
+      
+      customerSubscriptions = subsWithPlans as typeof customerSubscriptions;
     }
 
     // Default entitlements for users without subscriptions

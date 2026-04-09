@@ -141,15 +141,13 @@ export default function DashboardClient() {
               <User className="h-4 w-4 text-[#78716c]" />
               <span>{session.user.email}</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <button
               onClick={handleSignOut}
-              className="gap-2"
+              className="group inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               Sign out
-            </Button>
+            </button>
           </div>
         </div>
       </nav>

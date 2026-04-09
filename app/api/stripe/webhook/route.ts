@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { stripeEvents } from "@/drizzle/schema";
 import { env } from "@/lib/env";
 import { logger, createWebhookLogger } from "@/lib/logger";
-import { eventHandlers, isSupportedEventType } from "@/lib/billing/events";
+import { dispatchStripeEvent, isSupportedEventType } from "@/lib/billing/events";
+import { enqueueStripeEvent } from "@/lib/billing/webhook-queue";
 
 const stripe = new Stripe(env.stripeSecretKey, {
   apiVersion: "2026-03-25.dahlia",
@@ -92,14 +93,7 @@ export async function POST(req: NextRequest) {
         eventLogger.debug({ attempt: existingEvent.attempts + 1 }, "Updated attempt count");
       }
 
-      // Get the appropriate handler (type is already validated as SupportedEventType)
-      const handler = eventHandlers[event.type as keyof typeof eventHandlers];
-      if (!handler) {
-        throw new Error(`No handler found for event type: ${event.type}`);
-      }
-
-      // Execute the handler within the transaction
-      await handler({
+      await dispatchStripeEvent({
         event,
         stripe,
         tx,
@@ -142,6 +136,13 @@ export async function POST(req: NextRequest) {
         .where(eq(stripeEvents.id, event.id));
     } catch (updateErr) {
       logger.error({ eventId: event.id, error: updateErr }, "Failed to update event error status");
+    }
+
+    try {
+      await enqueueStripeEvent(event.id, event.type, event);
+      eventLogger.warn("Enqueued webhook for retry processing");
+    } catch (queueErr) {
+      logger.error({ eventId: event.id, error: queueErr }, "Failed to enqueue webhook for retry");
     }
 
     return NextResponse.json(

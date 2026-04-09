@@ -1,309 +1,12 @@
 #!/usr/bin/env node
-
-// src/index.ts
-import { Command } from "commander";
-import chalk11 from "chalk";
-
-// src/commands/init.ts
-import chalk5 from "chalk";
-import inquirer2 from "inquirer";
-import ora2 from "ora";
-import fs6 from "fs-extra";
-import path6 from "path";
-import { execa as execa2 } from "execa";
-
-// src/utils/detect.ts
-import fs from "fs-extra";
-import path from "path";
-async function detectFramework() {
-  const cwd = process.cwd();
-  const packageJsonPath = path.join(cwd, "package.json");
-  if (await fs.pathExists(packageJsonPath)) {
-    const packageJson = await fs.readJson(packageJsonPath);
-    const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-    if (deps.next) {
-      const hasAppDir = await fs.pathExists(path.join(cwd, "app"));
-      const hasPagesDir = await fs.pathExists(path.join(cwd, "pages"));
-      return {
-        name: "nextjs",
-        version: deps.next,
-        type: hasAppDir ? "app" : hasPagesDir ? "pages" : "app"
-      };
-    }
-    if (deps.react) {
-      return { name: "react", version: deps.react };
-    }
-    if (deps.vue || deps["@vue/core"]) {
-      return { name: "vue", version: deps.vue || deps["@vue/core"] };
-    }
-    if (deps.express) {
-      return { name: "express", version: deps.express };
-    }
-  }
-  if (await fs.pathExists(path.join(cwd, "next.config.js")) || await fs.pathExists(path.join(cwd, "next.config.ts")) || await fs.pathExists(path.join(cwd, "next.config.mjs"))) {
-    return { name: "nextjs", type: "app" };
-  }
-  if (await fs.pathExists(path.join(cwd, "vite.config.ts"))) {
-    return { name: "react" };
-  }
-  return { name: "unknown" };
-}
-
-// src/utils/stripe.ts
-import Stripe from "stripe";
-async function findOrCreatePrice(stripe, productData, priceData) {
-  try {
-    const existingPrices = await stripe.prices.search({
-      query: `lookup_key:"${priceData.lookup_key}"`
-    });
-    if (existingPrices.data.length > 0) {
-      const existingPrice = existingPrices.data[0];
-      const product2 = await stripe.products.retrieve(
-        typeof existingPrice.product === "string" ? existingPrice.product : existingPrice.product.id
-      );
-      return {
-        productId: product2.id,
-        priceId: existingPrice.id,
-        name: product2.name
-      };
-    }
-  } catch {
-  }
-  const product = await stripe.products.create(productData);
-  const price = await stripe.prices.create({
-    product: product.id,
-    unit_amount: priceData.unit_amount,
-    currency: priceData.currency,
-    recurring: priceData.recurring,
-    lookup_key: priceData.lookup_key
-  });
-  return { productId: product.id, priceId: price.id, name: product.name };
-}
-async function createStripeProducts(apiKey) {
-  const stripe = new Stripe(apiKey, {
-    apiVersion: "2023-10-16"
-  });
-  const products = [];
-  try {
-    const pro = await findOrCreatePrice(
-      stripe,
-      {
-        name: "Pro",
-        description: "For growing businesses",
-        metadata: {
-          tier: "pro",
-          features: JSON.stringify([
-            "10,000 API calls/mo",
-            "Unlimited projects",
-            "Priority support",
-            "Advanced analytics"
-          ])
-        }
-      },
-      {
-        unit_amount: 2900,
-        currency: "usd",
-        recurring: { interval: "month" },
-        lookup_key: `pro_monthly_${Date.now()}`
-        // Unique lookup key
-      }
-    );
-    products.push({ id: pro.productId, name: pro.name, priceId: pro.priceId });
-  } catch (error) {
-    console.warn("Failed to create Pro plan:", error instanceof Error ? error.message : String(error));
-  }
-  try {
-    const enterprise = await findOrCreatePrice(
-      stripe,
-      {
-        name: "Enterprise",
-        description: "For large organizations",
-        metadata: {
-          tier: "enterprise",
-          features: JSON.stringify([
-            "Unlimited API calls",
-            "Custom integrations",
-            "SLA guarantee",
-            "Dedicated support"
-          ])
-        }
-      },
-      {
-        unit_amount: 9900,
-        currency: "usd",
-        recurring: { interval: "month" },
-        lookup_key: `enterprise_monthly_${Date.now()}`
-        // Unique lookup key
-      }
-    );
-    products.push({
-      id: enterprise.productId,
-      name: enterprise.name,
-      priceId: enterprise.priceId
-    });
-  } catch (error) {
-    console.warn("Failed to create Enterprise plan:", error instanceof Error ? error.message : String(error));
-  }
-  try {
-    const usage = await findOrCreatePrice(
-      stripe,
-      {
-        name: "API Calls",
-        description: "Per-call pricing for API usage",
-        metadata: {
-          type: "usage",
-          unit: "api_call"
-        }
-      },
-      {
-        unit_amount: 1,
-        // $0.01 per call
-        currency: "usd",
-        recurring: {
-          interval: "month",
-          usage_type: "metered"
-        },
-        lookup_key: `api_calls_${Date.now()}`
-        // Unique lookup key
-      }
-    );
-    products.push({
-      id: usage.productId,
-      name: "API Calls (Usage)",
-      priceId: usage.priceId
-    });
-  } catch (error) {
-    console.warn("Failed to create Usage plan:", error instanceof Error ? error.message : String(error));
-  }
-  if (products.length === 0) {
-    throw new Error("Failed to create any Stripe products. Check your API key and try again.");
-  }
-  return products;
-}
-
-// src/utils/templates.ts
-import fs3 from "fs-extra";
-import path3 from "path";
-import chalk2 from "chalk";
-
-// src/commands/add.ts
-import chalk from "chalk";
-import ora from "ora";
-import fs2 from "fs-extra";
-import path2 from "path";
-var COMPONENTS = {
-  "pricing-table": {
-    name: "PricingTable",
-    description: "Beautiful pricing table with Stripe checkout integration",
-    files: ["pricing-table.tsx"]
-  },
-  "upgrade-button": {
-    name: "UpgradeButton",
-    description: "Smart upgrade button with plan comparison",
-    files: ["upgrade-button.tsx"]
-  },
-  "usage-meter": {
-    name: "UsageMeter",
-    description: "Real-time usage visualization with limits",
-    files: ["usage-meter.tsx"]
-  },
-  "current-plan": {
-    name: "CurrentPlanBadge",
-    description: "Shows current plan with upgrade CTA",
-    files: ["current-plan.tsx"]
-  },
-  "billing-portal": {
-    name: "BillingPortalButton",
-    description: "Opens Stripe customer portal",
-    files: ["billing-portal-button.tsx"]
-  },
-  "subscription-gate": {
-    name: "SubscriptionGate",
-    description: "Blocks content based on subscription status",
-    files: ["subscription-gate.tsx"]
-  },
-  "trial-banner": {
-    name: "TrialBanner",
-    description: "Shows trial status and countdown",
-    files: ["trial-banner.tsx"]
-  },
-  "all": {
-    name: "All Components",
-    description: "Install all billing components",
-    files: [
-      "pricing-table.tsx",
-      "upgrade-button.tsx",
-      "usage-meter.tsx",
-      "current-plan.tsx",
-      "billing-portal-button.tsx",
-      "subscription-gate.tsx",
-      "trial-banner.tsx",
-      "index.ts"
-    ]
-  }
-};
-async function addCommand(component, options) {
-  console.log(chalk.blue.bold("\n\u{1F4E6} @drew/billing add\n"));
-  const validComponents = Object.keys(COMPONENTS);
-  if (!validComponents.includes(component)) {
-    console.log(chalk.red(`Invalid component: ${component}
-`));
-    console.log(chalk.gray("Available components:"));
-    validComponents.forEach((c) => {
-      if (c === "all") return;
-      const info = COMPONENTS[c];
-      console.log(chalk.gray(`  \u2022 ${c}`) + ` - ${info.description}`);
-    });
-    console.log(chalk.gray(`  \u2022 all - Install all components`));
-    console.log();
-    process.exit(1);
-  }
-  const componentInfo = COMPONENTS[component];
-  const installPath = options.path || "components/billing";
-  const cwd = options.cwd || process.cwd();
-  const fullPath = path2.join(cwd, installPath);
-  console.log(chalk.gray(`Installing ${componentInfo.name}...
-`));
-  await fs2.ensureDir(fullPath);
-  const spinner = ora("Creating components...").start();
-  try {
-    for (const file of componentInfo.files) {
-      const content = getComponentTemplate(file);
-      await fs2.writeFile(path2.join(fullPath, file), content);
-    }
-    spinner.succeed(`Installed ${componentInfo.name} to ${installPath}/`);
-  } catch (error) {
-    spinner.fail("Failed to install component");
-    console.error(error);
-    process.exit(1);
-  }
-  console.log(chalk.green.bold("\n\u2705 Component installed!\n"));
-  console.log(chalk.gray("Usage:"));
-  if (component === "all") {
-    console.log(chalk.cyan(`import { PricingTable, UpgradeButton } from "${installPath}";`));
-  } else {
-    console.log(chalk.cyan(`import { ${componentInfo.name} } from "${installPath}/${component.replace("billing-portal", "billing-portal-button")}";`));
-  }
-  console.log();
-  console.log(chalk.gray("Documentation:"), chalk.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
-  console.log();
-}
-function getComponentTemplate(filename) {
-  const templates = {
-    "pricing-table.tsx": getPricingTableTemplate(),
-    "upgrade-button.tsx": getUpgradeButtonTemplate(),
-    "usage-meter.tsx": getUsageMeterTemplate(),
-    "current-plan.tsx": getCurrentPlanTemplate(),
-    "billing-portal-button.tsx": getBillingPortalTemplate(),
-    "subscription-gate.tsx": getSubscriptionGateTemplate(),
-    "trial-banner.tsx": getTrialBannerTemplate(),
-    "index.ts": getIndexTemplate()
-  };
-  return templates[filename] || `// ${filename} - Component template
-export function Placeholder() { return null; }`;
-}
-function getPricingTableTemplate() {
-  return `"use client";
+import{Command as vt}from"commander";import Z from"chalk";import n from"chalk";import le from"inquirer";import S from"ora";import C from"fs-extra";import E from"path";import{execa as _}from"execa";import U from"fs-extra";import D from"path";async function V(){let e=process.cwd(),s=D.join(e,"package.json");if(await U.pathExists(s)){let a=await U.readJson(s),t={...a.dependencies,...a.devDependencies};if(t.next){let r=await U.pathExists(D.join(e,"app")),o=await U.pathExists(D.join(e,"pages"));return{name:"nextjs",version:t.next,type:r?"app":o?"pages":"app"}}if(t.react)return{name:"react",version:t.react};if(t.vue||t["@vue/core"])return{name:"vue",version:t.vue||t["@vue/core"]};if(t.express)return{name:"express",version:t.express}}return await U.pathExists(D.join(e,"next.config.js"))||await U.pathExists(D.join(e,"next.config.ts"))||await U.pathExists(D.join(e,"next.config.mjs"))?{name:"nextjs",type:"app"}:await U.pathExists(D.join(e,"vite.config.ts"))?{name:"react"}:{name:"unknown"}}import $e from"stripe";async function ae(e,s,a){try{let o=await e.prices.search({query:`lookup_key:"${a.lookup_key}"`});if(o.data.length>0){let u=o.data[0],h=await e.products.retrieve(typeof u.product=="string"?u.product:u.product.id);return{productId:h.id,priceId:u.id,name:h.name}}}catch{}let t=await e.products.create(s),r=await e.prices.create({product:t.id,unit_amount:a.unit_amount,currency:a.currency,recurring:a.recurring,lookup_key:a.lookup_key});return{productId:t.id,priceId:r.id,name:t.name}}async function ue(e){let s=new $e(e,{apiVersion:"2023-10-16"}),a=[];try{let t=await ae(s,{name:"Pro",description:"For growing businesses",metadata:{tier:"pro",features:JSON.stringify(["10,000 API calls/mo","Unlimited projects","Priority support","Advanced analytics"])}},{unit_amount:2900,currency:"usd",recurring:{interval:"month"},lookup_key:`pro_monthly_${Date.now()}`});a.push({id:t.productId,name:t.name,priceId:t.priceId})}catch(t){console.warn("Failed to create Pro plan:",t instanceof Error?t.message:String(t))}try{let t=await ae(s,{name:"Enterprise",description:"For large organizations",metadata:{tier:"enterprise",features:JSON.stringify(["Unlimited API calls","Custom integrations","SLA guarantee","Dedicated support"])}},{unit_amount:9900,currency:"usd",recurring:{interval:"month"},lookup_key:`enterprise_monthly_${Date.now()}`});a.push({id:t.productId,name:t.name,priceId:t.priceId})}catch(t){console.warn("Failed to create Enterprise plan:",t instanceof Error?t.message:String(t))}try{let t=await ae(s,{name:"API Calls",description:"Per-call pricing for API usage",metadata:{type:"usage",unit:"api_call"}},{unit_amount:1,currency:"usd",recurring:{interval:"month",usage_type:"metered"},lookup_key:`api_calls_${Date.now()}`});a.push({id:t.productId,name:"API Calls (Usage)",priceId:t.priceId})}catch(t){console.warn("Failed to create Usage plan:",t instanceof Error?t.message:String(t))}if(a.length===0)throw new Error("Failed to create any Stripe products. Check your API key and try again.");return a}import Y from"fs-extra";import P from"path";import I from"chalk";import N from"chalk";import Me from"ora";import ge from"fs-extra";import fe from"path";var se={"pricing-table":{name:"PricingTable",description:"Beautiful pricing table with Stripe checkout integration",files:["pricing-table.tsx"]},"upgrade-button":{name:"UpgradeButton",description:"Smart upgrade button with plan comparison",files:["upgrade-button.tsx"]},"usage-meter":{name:"UsageMeter",description:"Real-time usage visualization with limits",files:["usage-meter.tsx"]},"current-plan":{name:"CurrentPlanBadge",description:"Shows current plan with upgrade CTA",files:["current-plan.tsx"]},"billing-portal":{name:"BillingPortalButton",description:"Opens Stripe customer portal",files:["billing-portal-button.tsx"]},"subscription-gate":{name:"SubscriptionGate",description:"Blocks content based on subscription status",files:["subscription-gate.tsx"]},"trial-banner":{name:"TrialBanner",description:"Shows trial status and countdown",files:["trial-banner.tsx"]},all:{name:"All Components",description:"Install all billing components",files:["pricing-table.tsx","upgrade-button.tsx","usage-meter.tsx","current-plan.tsx","billing-portal-button.tsx","subscription-gate.tsx","trial-banner.tsx","index.ts"]}};async function B(e,s){console.log(N.blue.bold(`
+\u{1F4E6} drew-billing-cli add
+`));let a=Object.keys(se);a.includes(e)||(console.log(N.red(`Invalid component: ${e}
+`)),console.log(N.gray("Available components:")),a.forEach(c=>{if(c==="all")return;let p=se[c];console.log(N.gray(`  \u2022 ${c}`)+` - ${p.description}`)}),console.log(N.gray("  \u2022 all - Install all components")),console.log(),process.exit(1));let t=se[e],r=s.path||"components/billing",o=s.cwd||process.cwd(),u=fe.join(o,r);console.log(N.gray(`Installing ${t.name}...
+`)),await ge.ensureDir(u);let h=Me("Creating components...").start();try{for(let c of t.files){let p=Oe(c);await ge.writeFile(fe.join(u,c),p)}h.succeed(`Installed ${t.name} to ${r}/`)}catch(c){h.fail("Failed to install component"),console.error(c),process.exit(1)}console.log(N.green.bold(`
+\u2705 Component installed!
+`)),console.log(N.gray("Usage:")),console.log(e==="all"?N.cyan(`import { PricingTable, UpgradeButton } from "${r}";`):N.cyan(`import { ${t.name} } from "${r}/${e.replace("billing-portal","billing-portal-button")}";`)),console.log(),console.log(N.gray("Documentation:"),N.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme")),console.log()}function Oe(e){return{"pricing-table.tsx":ze(),"upgrade-button.tsx":Fe(),"usage-meter.tsx":We(),"current-plan.tsx":Ke(),"billing-portal-button.tsx":qe(),"subscription-gate.tsx":He(),"trial-banner.tsx":Ve(),"index.ts":Ye()}[e]||`// ${e} - Component template
+export function Placeholder() { return null; }`}function ze(){return`"use client";
 
 import { useState } from "react";
 
@@ -431,10 +134,7 @@ export function PricingTable({
     </div>
   );
 }
-`;
-}
-function getUpgradeButtonTemplate() {
-  return `"use client";
+`}function Fe(){return`"use client";
 
 import { useState } from "react";
 
@@ -503,10 +203,7 @@ export function UpgradeButton({
     </button>
   );
 }
-`;
-}
-function getUsageMeterTemplate() {
-  return `"use client";
+`}function We(){return`"use client";
 
 import { useEffect, useState } from "react";
 
@@ -620,10 +317,7 @@ export function UsageMeter({
     </div>
   );
 }
-`;
-}
-function getCurrentPlanTemplate() {
-  return `"use client";
+`}function Ke(){return`"use client";
 
 interface CurrentPlanProps {
   plan: string;
@@ -722,10 +416,7 @@ export function CurrentPlanBadge({
     </div>
   );
 }
-`;
-}
-function getBillingPortalTemplate() {
-  return `"use client";
+`}function qe(){return`"use client";
 
 import { useState } from "react";
 
@@ -783,10 +474,7 @@ export function BillingPortalButton({
     </button>
   );
 }
-`;
-}
-function getSubscriptionGateTemplate() {
-  return `"use client";
+`}function He(){return`"use client";
 
 interface SubscriptionGateProps {
   hasSubscription: boolean;
@@ -845,10 +533,7 @@ export function SubscriptionGate({
     </div>
   );
 }
-`;
-}
-function getTrialBannerTemplate() {
-  return `"use client";
+`}function Ve(){return`"use client";
 
 import { useState } from "react";
 
@@ -936,65 +621,15 @@ export function TrialBanner({
     </div>
   );
 }
-`;
-}
-function getIndexTemplate() {
-  return `export { PricingTable } from "./pricing-table";
+`}function Ye(){return`export { PricingTable } from "./pricing-table";
 export { UpgradeButton } from "./upgrade-button";
 export { UsageMeter } from "./usage-meter";
 export { CurrentPlanBadge } from "./current-plan";
 export { BillingPortalButton } from "./billing-portal-button";
 export { SubscriptionGate } from "./subscription-gate";
 export { TrialBanner } from "./trial-banner";
-`;
-}
-
-// src/utils/templates.ts
-async function writeTemplateFile(filePath, content, description) {
-  try {
-    await fs3.ensureDir(path3.dirname(filePath));
-    await fs3.writeFile(filePath, content, "utf-8");
-    const exists = await fs3.pathExists(filePath);
-    if (!exists) {
-      throw new Error(`Verification failed: ${filePath} was not created`);
-    }
-    const stats = await fs3.stat(filePath);
-    console.log(chalk2.gray(`  \u2713 ${description} (${stats.size} bytes)`));
-  } catch (error) {
-    console.error(chalk2.red(`  \u2717 Failed to write ${description}:`));
-    console.error(chalk2.red(`    ${filePath}`));
-    if (error instanceof Error) {
-      console.error(chalk2.red(`    ${error.message}`));
-    }
-    throw error;
-  }
-}
-async function installTemplates(templateType, products, projectCwd) {
-  const cwd = projectCwd || process.cwd();
-  switch (templateType) {
-    case "saas":
-      await installSaasTemplate(cwd, products);
-      break;
-    case "api":
-      await installApiTemplate(cwd, products);
-      break;
-    case "usage":
-      await installUsageTemplate(cwd, products);
-      break;
-    case "minimal":
-      break;
-    default:
-      throw new Error(`Unknown template: ${templateType}`);
-  }
-}
-async function installSaasTemplate(cwd, products) {
-  console.log(chalk2.blue("\n\u{1F4C4} Creating SaaS template pages..."));
-  await addCommand("all", { path: "components/billing", cwd });
-  const proProduct = products.find((p) => p.name === "Pro");
-  const enterpriseProduct = products.find((p) => p.name === "Enterprise");
-  const proPriceId = proProduct?.priceId || "price_placeholder_pro";
-  const enterprisePriceId = enterpriseProduct?.priceId || "price_placeholder_enterprise";
-  const mainPage = `"use client";
+`}async function T(e,s,a){try{if(await Y.ensureDir(P.dirname(e)),await Y.writeFile(e,s,"utf-8"),!await Y.pathExists(e))throw new Error(`Verification failed: ${e} was not created`);let r=await Y.stat(e);console.log(I.gray(`  \u2713 ${a} (${r.size} bytes)`))}catch(t){throw console.error(I.red(`  \u2717 Failed to write ${a}:`)),console.error(I.red(`    ${e}`)),t instanceof Error&&console.error(I.red(`    ${t.message}`)),t}}async function he(e,s,a){let t=a||process.cwd();switch(e){case"saas":await Ge(t,s);break;case"api":await Je(t,s);break;case"usage":await Xe(t,s);break;case"minimal":break;default:throw new Error(`Unknown template: ${e}`)}}async function Ge(e,s){console.log(I.blue(`
+\u{1F4C4} Creating SaaS template pages...`)),await B("all",{path:"components/billing",cwd:e});let a=s.find(m=>m.name==="Pro"),t=s.find(m=>m.name==="Enterprise"),r=a?.priceId||"price_placeholder_pro",o=t?.priceId||"price_placeholder_enterprise";await T(P.join(e,"app/page.tsx"),`"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -1226,12 +861,12 @@ export default function HomePage() {
                     Run the diagnostic command to check your setup and get personalized guidance.
                   </p>
                   <button
-                    onClick={() => copyToClipboard("npx @drew/billing doctor")}
+                    onClick={() => copyToClipboard("npx drew-billing-cli doctor")}
                     className="inline-flex items-center gap-2 rounded-lg border border-[#e7e5e4] bg-[#fafaf9] px-3 py-2 text-sm font-mono text-[#57534e] hover:border-[#b8860b]/50 transition-all"
                   >
                     <Terminal className="h-3.5 w-3.5 text-[#a8a29e]" />
-                    npx @drew/billing doctor
-                    {copiedCommand === "npx @drew/billing doctor" && (
+                    npx drew-billing-cli doctor
+                    {copiedCommand === "npx drew-billing-cli doctor" && (
                       <CheckCircle2 className="h-3.5 w-3.5 text-[#22c55e] ml-2" />
                     )}
                   </button>
@@ -1299,13 +934,7 @@ export default function HomePage() {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/page.tsx"),
-    mainPage,
-    "Main landing page with setup guide"
-  );
-  const pricingPage = `"use client";
+`,"Main landing page with setup guide");let h=`"use client";
 
 import { PricingTable } from "@/components/billing";
 import { useState } from "react";
@@ -1341,7 +970,7 @@ const plans = [
     ],
     cta: "Upgrade to Pro",
     popular: true,
-    priceId: "${proPriceId}",
+    priceId: "${r}",
   },
   {
     id: "enterprise",
@@ -1359,7 +988,7 @@ const plans = [
     ],
     cta: "Contact Sales",
     popular: false,
-    priceId: "${enterprisePriceId}",
+    priceId: "${o}",
   },
 ];
 
@@ -1448,13 +1077,7 @@ export default function PricingPage() {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/pricing/page.tsx"),
-    pricingPage,
-    "Pricing page"
-  );
-  const billingPage = `"use client";
+`;await T(P.join(e,"app/pricing/page.tsx"),h,"Pricing page"),await T(P.join(e,"app/billing/page.tsx"),`"use client";
 
 import { BillingPortalButton, CurrentPlanBadge, UsageMeter } from "@/components/billing";
 import { useState } from "react";
@@ -1563,13 +1186,7 @@ export default function BillingPage() {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/billing/page.tsx"),
-    billingPage,
-    "Billing dashboard page"
-  );
-  const demoPage = `"use client";
+`,"Billing dashboard page"),await T(P.join(e,"app/demo/page.tsx"),`"use client";
 
 import { useState } from "react";
 import { UsageMeter, UpgradeButton, CurrentPlanBadge, TrialBanner, SubscriptionGate } from "@/components/billing";
@@ -1751,18 +1368,9 @@ export default function DemoPage() {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/demo/page.tsx"),
-    demoPage,
-    "Demo/playground page"
-  );
-  console.log(chalk2.green("\u2705 SaaS template files created successfully\n"));
-}
-async function installApiTemplate(cwd, _products) {
-  console.log(chalk2.blue("\n\u{1F4C4} Creating API template pages..."));
-  await addCommand("usage-meter", { path: "components/billing", cwd });
-  const mainPage = `"use client";
+`,"Demo/playground page"),console.log(I.green(`\u2705 SaaS template files created successfully
+`))}async function Je(e,s){console.log(I.blue(`
+\u{1F4C4} Creating API template pages...`)),await B("usage-meter",{path:"components/billing",cwd:e}),await T(P.join(e,"app/page.tsx"),`"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -1991,13 +1599,7 @@ export async function POST(req: Request) {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/page.tsx"),
-    mainPage,
-    "Main page with setup guide"
-  );
-  const apiRoute = `import { NextRequest, NextResponse } from "next/server";
+`,"Main page with setup guide"),await T(P.join(e,"app/api/example/route.ts"),`import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   const userId = req.headers.get("x-user-id");
@@ -2012,13 +1614,7 @@ export async function POST(req: NextRequest) {
   // Your API logic here
   return NextResponse.json({ success: true });
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/api/example/route.ts"),
-    apiRoute,
-    "Example API route"
-  );
-  const middleware = `import { NextResponse } from "next/server";
+`,"Example API route"),await T(P.join(e,"middleware.ts"),`import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
@@ -2040,19 +1636,9 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: "/api/protected/:path*",
 };
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "middleware.ts"),
-    middleware,
-    "API middleware"
-  );
-  console.log(chalk2.green("\u2705 API template files created successfully\n"));
-}
-async function installUsageTemplate(cwd, _products) {
-  console.log(chalk2.blue("\n\u{1F4C4} Creating Usage template pages..."));
-  await addCommand("usage-meter", { path: "components/billing", cwd });
-  await addCommand("upgrade-button", { path: "components/billing", cwd });
-  const mainPage = `"use client";
+`,"API middleware"),console.log(I.green(`\u2705 API template files created successfully
+`))}async function Xe(e,s){console.log(I.blue(`
+\u{1F4C4} Creating Usage template pages...`)),await B("usage-meter",{path:"components/billing",cwd:e}),await B("upgrade-button",{path:"components/billing",cwd:e}),await T(P.join(e,"app/page.tsx"),`"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -2311,13 +1897,7 @@ export default function HomePage() {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/page.tsx"),
-    mainPage,
-    "Main page with usage setup guide"
-  );
-  const dashboardPage = `"use client";
+`,"Main page with usage setup guide"),await T(P.join(e,"app/dashboard/page.tsx"),`"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -2435,627 +2015,35 @@ export default function UsageDashboard() {
     </main>
   );
 }
-`;
-  await writeTemplateFile(
-    path3.join(cwd, "app/dashboard/page.tsx"),
-    dashboardPage,
-    "Usage dashboard page"
-  );
-  console.log(chalk2.green("\u2705 Usage template files created successfully\n"));
-}
-
-// src/utils/env.ts
-import fs4 from "fs-extra";
-import path4 from "path";
-async function updateEnvFile(vars) {
-  const envPath = path4.join(process.cwd(), ".env.local");
-  let content = "";
-  try {
-    content = await fs4.readFile(envPath, "utf-8");
-  } catch {
-  }
-  for (const [key, value] of Object.entries(vars)) {
-    const line = `${key}=${value}`;
-    if (content.includes(`${key}=`)) {
-      content = content.replace(new RegExp(`${key}=.*`), line);
-    } else {
-      content += content.endsWith("\n") ? "" : "\n";
-      content += `${line}
-`;
-    }
-  }
-  await fs4.writeFile(envPath, content);
-}
-
-// src/utils/package-manager.ts
-import fs5 from "fs-extra";
-import path5 from "path";
-import { execa } from "execa";
-async function detectPackageManager() {
-  const cwd = process.cwd();
-  if (await fs5.pathExists(path5.join(cwd, "bun.lockb")) || await fs5.pathExists(path5.join(cwd, "bun.lock"))) {
-    return "bun";
-  }
-  if (await fs5.pathExists(path5.join(cwd, "pnpm-lock.yaml"))) {
-    return "pnpm";
-  }
-  if (await fs5.pathExists(path5.join(cwd, "yarn.lock"))) {
-    return "yarn";
-  }
-  return "npm";
-}
-
-// src/utils/telemetry.ts
-import { createHash } from "crypto";
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
-import chalk3 from "chalk";
-var TELEMETRY_DIR = join(homedir(), ".drew-billing");
-var TELEMETRY_FILE = join(TELEMETRY_DIR, "telemetry.json");
-var TELEMETRY_ENDPOINT = process.env.TELEMETRY_ENDPOINT || "";
-function getMachineId() {
-  const data = `${homedir()}_${process.platform}_${process.arch}`;
-  return createHash("sha256").update(data).digest("hex").substring(0, 16);
-}
-function loadTelemetryConfig() {
-  try {
-    if (existsSync(TELEMETRY_FILE)) {
-      const data = JSON.parse(readFileSync(TELEMETRY_FILE, "utf-8"));
-      return {
-        enabled: data.enabled ?? false,
-        machineId: data.machineId || getMachineId(),
-        optedInAt: data.optedInAt
-      };
-    }
-  } catch {
-  }
-  return {
-    enabled: false,
-    machineId: getMachineId()
-  };
-}
-function saveTelemetryConfig(config) {
-  try {
-    if (!existsSync(TELEMETRY_DIR)) {
-      mkdirSync(TELEMETRY_DIR, { recursive: true });
-    }
-    writeFileSync(TELEMETRY_FILE, JSON.stringify(config, null, 2));
-  } catch {
-  }
-}
-function enableTelemetry() {
-  const config = loadTelemetryConfig();
-  config.enabled = true;
-  config.optedInAt = (/* @__PURE__ */ new Date()).toISOString();
-  saveTelemetryConfig(config);
-}
-function disableTelemetry() {
-  const config = loadTelemetryConfig();
-  config.enabled = false;
-  saveTelemetryConfig(config);
-}
-function generateSessionId() {
-  return `cli_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
-}
-function trackEvent(type, metadata) {
-  const config = loadTelemetryConfig();
-  if (!config.enabled) return;
-  const event = {
-    type,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    machineId: config.machineId,
-    sessionId: generateSessionId(),
-    cliVersion: "1.0.0",
-    metadata
-  };
-  sendEvent(event).catch(() => {
-  });
-}
-function trackTiming(event, durationMs, metadata) {
-  trackEvent(event, { ...metadata, durationMs });
-}
-async function sendEvent(event) {
-  if (!TELEMETRY_ENDPOINT) {
-    if (process.env.DEBUG === "true") {
-      console.log("[Telemetry]", event);
-    }
-    return;
-  }
-  try {
-    await fetch(TELEMETRY_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(event)
-    });
-  } catch {
-  }
-}
-var FunnelStage = {
-  CLI_INSTALL: "cli_install",
-  INIT_STARTED: "init_started",
-  INIT_COMPLETED: "init_completed",
-  SANDBOX_STARTED: "sandbox_started",
-  FIRST_CHECKOUT: "first_checkout",
-  FIRST_SUBSCRIPTION: "first_subscription"
-};
-function trackFunnel(stage, metadata) {
-  trackEvent(`funnel_${stage}`, metadata);
-}
-
-// src/utils/feedback.ts
-import chalk4 from "chalk";
-import inquirer from "inquirer";
-async function promptForFeedback(eventType, metadata) {
-  console.log();
-  console.log(chalk4.blue.bold("\u{1F4E3} Quick Feedback"));
-  console.log(chalk4.gray("Your feedback helps us improve."));
-  console.log();
-  try {
-    const { wasEasy } = await inquirer.prompt([
-      {
-        type: "confirm",
-        name: "wasEasy",
-        message: "Was this easy to set up?",
-        default: true
-      }
-    ]);
-    let feedbackText;
-    if (!wasEasy) {
-      const { feedback } = await inquirer.prompt([
-        {
-          type: "input",
-          name: "feedback",
-          message: "What was difficult? (optional, 1 sentence)"
-        }
-      ]);
-      feedbackText = feedback;
-    }
-    trackEvent("feedback_collected", {
-      eventType,
-      rating: wasEasy ? "positive" : "negative",
-      feedback: feedbackText,
-      ...metadata
-    });
-    console.log();
-    if (wasEasy) {
-      console.log(chalk4.green("\u2728 Thanks! Glad it went smoothly."));
-    } else {
-      console.log(chalk4.yellow("\u{1F4DD} Thanks for the feedback \u2014 we'll use it to improve."));
-    }
-    console.log();
-  } catch {
-  }
-}
-
-// src/commands/init.ts
-async function initCommand(options) {
-  console.log(chalk5.blue.bold("\n\u26A1 @drew/billing init\n"));
-  trackFunnel(FunnelStage.INIT_STARTED, { template: options.template });
-  const initStartTime = Date.now();
-  const cwd = process.cwd();
-  const isEmptyDir = await isDirectoryEmpty(cwd);
-  const hasPackageJson = await fs6.pathExists(path6.join(cwd, "package.json"));
-  console.log(chalk5.gray(`Debug: cwd=${cwd}, isEmptyDir=${isEmptyDir}, hasPackageJson=${hasPackageJson}`));
-  let pkgManager = "npm";
-  let projectName = path6.basename(cwd);
-  let detectedFramework = { name: "nextjs" };
-  let projectScaffolded = false;
-  if (isEmptyDir || !hasPackageJson) {
-    console.log(chalk5.yellow("\u{1F4C1} No existing project detected."));
-    let shouldScaffold = options.yes;
-    if (!options.yes) {
-      const answer = await inquirer2.prompt([
-        {
-          type: "confirm",
-          name: "shouldScaffold",
-          message: "Create a new Next.js project here?",
-          default: true
-        }
-      ]);
-      shouldScaffold = answer.shouldScaffold;
-    }
-    if (!shouldScaffold) {
-      console.log(chalk5.gray("\nAborted. Please run this in an existing Next.js project directory.\n"));
-      process.exit(0);
-    }
-    const scaffoldResult = await scaffoldNextJsProject(cwd, options.yes);
-    if (!scaffoldResult.success) {
-      console.log(chalk5.red("\n\u274C Failed to scaffold Next.js project."));
-      console.log(chalk5.gray("Please try manually: npx create-next-app@latest .\n"));
-      process.exit(1);
-    }
-    pkgManager = scaffoldResult.pkgManager;
-    projectName = scaffoldResult.projectName;
-    projectScaffolded = true;
-    detectedFramework = { name: "nextjs", version: "latest" };
-    console.log(chalk5.green(`
-\u2705 Created Next.js project: ${projectName}
-`));
-    const hasPackageJsonAfter = await fs6.pathExists(path6.join(cwd, "package.json"));
-    if (!hasPackageJsonAfter) {
-      console.log(chalk5.red("\n\u274C Scaffolded project missing package.json"));
-      process.exit(1);
-    }
-  } else {
-    const spinner = ora2("Detecting framework...").start();
-    const framework = await detectFramework();
-    detectedFramework = { name: framework.name, version: framework.version };
-    if (framework.name !== "nextjs") {
-      spinner.warn(`Detected: ${framework.name} (limited support)`);
-      console.log(chalk5.yellow("\n\u26A0\uFE0F  Currently only Next.js is fully supported."));
-      console.log(chalk5.gray("Other frameworks coming soon: React, Vue, Svelte, Express\n"));
-      const { continueAnyway } = await inquirer2.prompt([
-        {
-          type: "confirm",
-          name: "continueAnyway",
-          message: "Continue with manual setup?",
-          default: false
-        }
-      ]);
-      if (!continueAnyway) {
-        console.log(chalk5.gray("\nAborted.\n"));
-        process.exit(0);
-      }
-    } else {
-      spinner.succeed(`Detected: ${chalk5.green("Next.js")} ${framework.version || ""}`);
-    }
-    pkgManager = await detectPackageManager();
-  }
-  console.log(chalk5.gray(`Using package manager: ${pkgManager}
-`));
-  let config;
-  if (options.yes) {
-    config = {
-      stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
-      stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
-      databaseUrl: process.env.DATABASE_URL || "",
-      template: options.template || "saas",
-      createProducts: !options.skipStripe
-    };
-  } else {
-    const answers = await inquirer2.prompt([
-      {
-        type: "input",
-        name: "stripeSecretKey",
-        message: "Stripe Secret Key (sk_test_...):",
-        default: process.env.STRIPE_SECRET_KEY,
-        validate: (input) => input.startsWith("sk_test_") || input.startsWith("sk_live_") ? true : "Must start with sk_test_ or sk_live_"
-      },
-      {
-        type: "input",
-        name: "stripePublishableKey",
-        message: "Stripe Publishable Key (pk_test_...):",
-        default: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-        validate: (input) => input.startsWith("pk_test_") || input.startsWith("pk_live_") ? true : "Must start with pk_test_ or pk_live_"
-      },
-      {
-        type: "input",
-        name: "databaseUrl",
-        message: "Database URL (postgresql://...):",
-        default: process.env.DATABASE_URL,
-        validate: (input) => {
-          if (!input || input.trim() === "") {
-            return "Database URL is required (use your Neon or local Postgres URL)";
-          }
-          if (!input.startsWith("postgresql://") && !input.startsWith("postgres://")) {
-            return "Must start with postgresql:// or postgres://";
-          }
-          return true;
-        }
-      },
-      {
-        type: "list",
-        name: "template",
-        message: "Choose your template:",
-        choices: [
-          { name: "SaaS Starter (pricing page + auth + dashboard)", value: "saas" },
-          { name: "API Billing (usage-based pricing)", value: "api" },
-          { name: "Simple Usage (metered billing)", value: "usage" },
-          { name: "Minimal (just the SDK)", value: "minimal" }
-        ],
-        default: options.template || "saas"
-      },
-      {
-        type: "confirm",
-        name: "createProducts",
-        message: "Create Stripe products automatically?",
-        default: !options.skipStripe
-      }
-    ]);
-    config = { ...answers, webhookSecret: "" };
-  }
-  console.log(chalk5.blue.bold("\n\u{1F4E6} Setting up @drew/billing...\n"));
-  const results = {
-    projectScaffolded,
-    dependencies: false,
-    stripeProducts: false,
-    database: false,
-    templates: false,
-    env: false
-  };
-  const errors = [];
-  const depsSpinner = ora2("Installing core dependencies...").start();
-  try {
-    await installWithRetry(["stripe"], pkgManager, depsSpinner, false, 2, cwd);
-    depsSpinner.succeed("Core dependencies installed");
-    results.dependencies = true;
-  } catch (error) {
-    depsSpinner.fail("Failed to install core dependencies");
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    errors.push(`Dependencies: ${errorMsg}`);
-    console.log(chalk5.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} stripe`));
-  }
-  const dbDepsSpinner = ora2("Installing database dependencies...").start();
-  try {
-    await installWithRetry(
-      ["drizzle-orm", "@neondatabase/serverless", "drizzle-kit"],
-      pkgManager,
-      dbDepsSpinner,
-      false,
-      2,
-      cwd
-    );
-    dbDepsSpinner.succeed("Database dependencies installed");
-  } catch (error) {
-    dbDepsSpinner.fail("Failed to install database dependencies");
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    errors.push(`DB Dependencies: ${errorMsg}`);
-    console.log(chalk5.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} drizzle-orm @neondatabase/serverless drizzle-kit`));
-  }
-  const devDepsSpinner = ora2("Installing dev dependencies...").start();
-  try {
-    await installWithRetry(["@types/node", "typescript"], pkgManager, devDepsSpinner, true, 2, cwd);
-    devDepsSpinner.succeed("Dev dependencies installed");
-  } catch {
-    devDepsSpinner.warn("Some dev dependencies may need manual installation");
-  }
-  console.log(chalk5.gray("\nNote: @drew/billing-sdk will be available when published. For now, the CLI provides all needed components.\n"));
-  let products = [];
-  if (config.createProducts && config.stripeSecretKey) {
-    const productSpinner = ora2("Creating Stripe products...").start();
-    try {
-      if (!config.stripeSecretKey.startsWith("sk_test_") && !config.stripeSecretKey.startsWith("sk_live_")) {
-        throw new Error("Invalid Stripe secret key format");
-      }
-      products = await createStripeProducts(config.stripeSecretKey);
-      productSpinner.succeed(`Created ${products.length} Stripe products`);
-      results.stripeProducts = true;
-    } catch (error) {
-      productSpinner.fail("Failed to create Stripe products");
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      errors.push(`Stripe products: ${errorMsg}`);
-      console.log(chalk5.gray("You can create them manually in the Stripe Dashboard"));
-      console.log(chalk5.gray("Then update the price IDs in your code"));
-      products = [
-        { id: "prod_fallback", name: "Pro", priceId: "price_fallback_pro" },
-        { id: "prod_fallback_2", name: "Enterprise", priceId: "price_fallback_enterprise" }
-      ];
-    }
-  }
-  const dbSpinner = ora2("Setting up database...").start();
-  try {
-    await ensureDrizzleConfig(cwd);
-    await setupDatabaseWithFallback(cwd, pkgManager, dbSpinner);
-    dbSpinner.succeed("Database configured");
-    results.database = true;
-  } catch (error) {
-    dbSpinner.fail("Database setup failed");
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    errors.push(`Database: ${errorMsg}`);
-    console.log(chalk5.gray("You can set up the database later by running:"));
-    console.log(chalk5.gray("  npx drizzle-kit push"));
-    console.log(chalk5.gray("\nMake sure to set DATABASE_URL in your .env.local file"));
-  }
-  const templateSpinner = ora2(`Installing ${config.template} template...`).start();
-  try {
-    await fs6.ensureDir(path6.join(cwd, "app"));
-    await fs6.ensureDir(path6.join(cwd, "components"));
-    await installTemplates(config.template, products, cwd);
-    templateSpinner.succeed(`Template installed`);
-    results.templates = true;
-  } catch (error) {
-    templateSpinner.fail("Template installation failed");
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    errors.push(`Templates: ${errorMsg}`);
-    console.log(chalk5.gray("Try running:"));
-    console.log(chalk5.gray("  npx @drew/billing add all"));
-  }
-  const envSpinner = ora2("Updating environment variables...").start();
-  try {
-    const envVars = {
-      STRIPE_SECRET_KEY: config.stripeSecretKey,
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: config.stripePublishableKey,
-      STRIPE_WEBHOOK_SECRET: config.webhookSecret || "whsec_... (run: stripe listen --forward-to localhost:3000/api/webhooks/stripe)",
-      DATABASE_URL: config.databaseUrl || "postgresql://username:password@localhost:5432/database_name",
-      BILLING_API_URL: "http://localhost:3000"
-    };
-    await updateEnvFile(envVars);
-    envSpinner.succeed("Environment variables configured");
-    results.env = true;
-  } catch (error) {
-    envSpinner.fail("Failed to update .env");
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    errors.push(`Environment: ${errorMsg}`);
-  }
-  const initDuration = Date.now() - initStartTime;
-  trackFunnel(FunnelStage.INIT_COMPLETED, {
-    template: config.template,
-    durationMs: initDuration,
-    framework: detectedFramework.name,
-    success: Object.values(results).every((r) => r)
-  });
-  trackTiming("init_complete", initDuration);
-  console.log(chalk5.green.bold("\n\u2705 Setup complete!\n"));
-  if (errors.length > 0) {
-    console.log(chalk5.yellow("\u26A0\uFE0F  Some steps failed:"));
-    errors.forEach((err) => console.log(chalk5.gray(`  \u2022 ${err}`)));
-    console.log();
-  }
-  console.log(chalk5.white("Next steps:\n"));
-  if (results.projectScaffolded) {
-    console.log(chalk5.gray("1."), "Navigate to your project:", chalk5.cyan(`cd ${projectName}`));
-    console.log(chalk5.gray("2."), "Start your dev server:", chalk5.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
-    console.log(chalk5.gray("3."), "Start Stripe webhook listener:", chalk5.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
-  } else {
-    console.log(chalk5.gray("1."), "Start your dev server:", chalk5.cyan(`${pkgManager === "npm" ? "npm run" : pkgManager} dev`));
-    console.log(chalk5.gray("2."), "Start Stripe webhook listener:", chalk5.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"));
-  }
-  if (results.templates) {
-    const stepNum = results.projectScaffolded ? "4" : "3";
-    console.log(chalk5.gray(`${stepNum}.`), "Visit", chalk5.cyan("http://localhost:3000/pricing"));
-  }
-  if (!results.database) {
-    console.log(chalk5.gray("\n\u26A0\uFE0F  Database not configured. Add DATABASE_URL to .env.local and run:"));
-    console.log(chalk5.gray("   npx drizzle-kit push"));
-  }
-  console.log();
-  console.log(chalk5.gray("Documentation:"), chalk5.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
-  console.log(chalk5.gray("Diagnostics:"), chalk5.cyan("npx drew-billing-cli doctor"));
-  console.log(chalk5.gray("Support:"), chalk5.underline("https://github.com/drewsephski/monetize/issues"));
-  console.log();
-  if (products.length > 0 && results.stripeProducts) {
-    console.log(chalk5.gray("Created Stripe products:"));
-    products.forEach((p) => {
-      console.log(chalk5.gray(`  \u2022 ${p.name}: ${p.priceId}`));
-    });
-    console.log();
-  } else if (products.length > 0) {
-    console.log(chalk5.gray("Placeholder product IDs (update these in your code):"));
-    products.forEach((p) => {
-      console.log(chalk5.gray(`  \u2022 ${p.name}: ${p.priceId}`));
-    });
-    console.log();
-  }
-  console.log(chalk5.blue("\u{1F4CA} Help improve @drew/billing"));
-  console.log(chalk5.gray("Enable anonymous telemetry to help us fix bugs faster."));
-  console.log(chalk5.gray("Run: npx @drew/billing telemetry --enable\n"));
-  await promptForFeedback("init_completed", {
-    template: config.template,
-    framework: detectedFramework.name,
-    durationMs: initDuration,
-    results
-  });
-}
-async function isDirectoryEmpty(dir) {
-  try {
-    const files = await fs6.readdir(dir);
-    const relevantFiles = files.filter((f) => !f.startsWith(".") && f !== "node_modules");
-    return relevantFiles.length === 0;
-  } catch {
-    return true;
-  }
-}
-async function scaffoldNextJsProject(cwd, yesMode = false) {
-  const projectName = path6.basename(cwd);
-  let pkgManager = "npm";
-  try {
-    await execa2("bun", ["--version"], { stdio: "pipe" });
-    pkgManager = "bun";
-  } catch {
-    try {
-      await execa2("pnpm", ["--version"], { stdio: "pipe" });
-      pkgManager = "pnpm";
-    } catch {
-      try {
-        await execa2("yarn", ["--version"], { stdio: "pipe" });
-        pkgManager = "yarn";
-      } catch {
-      }
-    }
-  }
-  const spinner = ora2(`Creating Next.js project with ${pkgManager}...`).start();
-  try {
-    const createNextAppCmd = pkgManager === "npm" ? "npx" : pkgManager;
-    const args = [
-      ...pkgManager === "npm" ? ["create-next-app@latest"] : ["create", "next-app"],
-      ".",
-      // Use current directory, not a subdirectory
-      "--typescript",
-      "--tailwind",
-      "--eslint",
-      "--app",
-      "--src-dir=false",
-      "--import-alias",
-      "@/*",
-      ...yesMode ? ["--yes"] : []
-    ];
-    await execa2(createNextAppCmd, args, {
-      cwd,
-      stdio: "pipe",
-      timeout: 3e5
-      // 5 minute timeout
-    });
-    spinner.succeed("Next.js project created");
-    return { success: true, pkgManager, projectName };
-  } catch {
-    spinner.fail("Failed to create Next.js project");
-    if (pkgManager !== "npm") {
-      spinner.text = "Retrying with npm...";
-      spinner.start();
-      try {
-        await execa2("npx", [
-          "create-next-app@latest",
-          ".",
-          // Use current directory
-          "--typescript",
-          "--tailwind",
-          "--eslint",
-          "--app",
-          "--src-dir=false",
-          "--import-alias",
-          "@/*",
-          ...yesMode ? ["--yes"] : []
-        ], {
-          cwd,
-          stdio: "pipe",
-          timeout: 3e5
-        });
-        spinner.succeed("Next.js project created with npm");
-        return { success: true, pkgManager: "npm", projectName };
-      } catch {
-        spinner.fail("All attempts failed");
-        return { success: false, pkgManager: "npm", projectName };
-      }
-    }
-    return { success: false, pkgManager, projectName };
-  }
-}
-async function installWithRetry(packages, pkgManager, spinner, dev = false, maxRetries = 2, projectCwd) {
-  const installCmd = pkgManager === "npm" ? "install" : "add";
-  const devFlag = dev ? pkgManager === "npm" ? "--save-dev" : "-D" : "";
-  const args = [installCmd, ...packages, ...devFlag ? [devFlag] : []];
-  const cwd = projectCwd || process.cwd();
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      spinner.text = `Installing dependencies (attempt ${attempt}/${maxRetries})...`;
-      await execa2(pkgManager, args, {
-        cwd,
-        stdio: "pipe",
-        timeout: 12e4
-        // 2 minute timeout
-      });
-      return;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.log(chalk5.gray(`  Install attempt ${attempt} failed: ${errorMsg.substring(0, 100)}`));
-      if (attempt === maxRetries) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2e3));
-    }
-  }
-}
-async function ensureDrizzleConfig(cwd) {
-  const drizzleConfigPath = path6.join(cwd, "drizzle.config.ts");
-  if (await fs6.pathExists(drizzleConfigPath)) {
-    return;
-  }
-  if (await fs6.pathExists(path6.join(cwd, "drizzle.config.js"))) {
-    return;
-  }
-  const configContent = `import { defineConfig } from "drizzle-kit";
+`,"Usage dashboard page"),console.log(I.green(`\u2705 Usage template files created successfully
+`))}import be from"fs-extra";import Ze from"path";async function xe(e){let s=Ze.join(process.cwd(),".env.local"),a="";try{a=await be.readFile(s,"utf-8")}catch{}for(let[t,r]of Object.entries(e)){let o=`${t}=${r}`;a.includes(`${t}=`)?a=a.replace(new RegExp(`${t}=.*`),o):(a+=a.endsWith(`
+`)?"":`
+`,a+=`${o}
+`)}await be.writeFile(s,a)}import G from"fs-extra";import J from"path";import{execa as Wt}from"execa";async function ye(){let e=process.cwd();return await G.pathExists(J.join(e,"bun.lockb"))||await G.pathExists(J.join(e,"bun.lock"))?"bun":await G.pathExists(J.join(e,"pnpm-lock.yaml"))?"pnpm":await G.pathExists(J.join(e,"yarn.lock"))?"yarn":"npm"}import{createHash as Qe}from"crypto";import{readFileSync as et,existsSync as Ne,writeFileSync as tt,mkdirSync as at}from"fs";import{homedir as ke}from"os";import{join as Se}from"path";import Jt from"chalk";var re=Se(ke(),".drew-billing"),ne=Se(re,"telemetry.json"),ve=process.env.TELEMETRY_ENDPOINT||"";function we(){let e=`${ke()}_${process.platform}_${process.arch}`;return Qe("sha256").update(e).digest("hex").substring(0,16)}function W(){try{if(Ne(ne)){let e=JSON.parse(et(ne,"utf-8"));return{enabled:e.enabled??!1,machineId:e.machineId||we(),optedInAt:e.optedInAt}}}catch{}return{enabled:!1,machineId:we()}}function Pe(e){try{Ne(re)||at(re,{recursive:!0}),tt(ne,JSON.stringify(e,null,2))}catch{}}function Ie(){let e=W();e.enabled=!0,e.optedInAt=new Date().toISOString(),Pe(e)}function Ce(){let e=W();e.enabled=!1,Pe(e)}function st(){return`cli_${Math.random().toString(36).substring(2,15)}_${Date.now()}`}function O(e,s){let a=W();if(!a.enabled)return;let t={type:e,timestamp:new Date().toISOString(),machineId:a.machineId,sessionId:st(),cliVersion:"1.0.0",metadata:s};rt(t).catch(()=>{})}function Ee(e,s,a){O(e,{...a,durationMs:s})}async function rt(e){if(!ve){process.env.DEBUG==="true"&&console.log("[Telemetry]",e);return}try{await fetch(ve,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)})}catch{}}var oe={CLI_INSTALL:"cli_install",INIT_STARTED:"init_started",INIT_COMPLETED:"init_completed",SANDBOX_STARTED:"sandbox_started",FIRST_CHECKOUT:"first_checkout",FIRST_SUBSCRIPTION:"first_subscription"};function ie(e,s){O(`funnel_${e}`,s)}import X from"chalk";import Te from"inquirer";async function _e(e,s){console.log(),console.log(X.blue.bold("\u{1F4E3} Quick Feedback")),console.log(X.gray("Your feedback helps us improve.")),console.log();try{let{wasEasy:a}=await Te.prompt([{type:"confirm",name:"wasEasy",message:"Was this easy to set up?",default:!0}]),t;if(!a){let{feedback:r}=await Te.prompt([{type:"input",name:"feedback",message:"What was difficult? (optional, 1 sentence)"}]);t=r}O("feedback_collected",{eventType:e,rating:a?"positive":"negative",feedback:t,...s}),console.log(),console.log(a?X.green("\u2728 Thanks! Glad it went smoothly."):X.yellow("\u{1F4DD} Thanks for the feedback \u2014 we'll use it to improve.")),console.log()}catch{}}async function Ae(e){console.log(n.blue.bold(`
+\u26A1 drew-billing-cli init
+`)),ie(oe.INIT_STARTED,{template:e.template});let s=Date.now(),a=process.cwd(),t=await nt(a),r=await C.pathExists(E.join(a,"package.json"));console.log(n.gray(`Debug: cwd=${a}, isEmptyDir=${t}, hasPackageJson=${r}`));let o="npm",u=E.basename(a),h={name:"nextjs"},c=!1;if(t||!r){console.log(n.yellow("\u{1F4C1} No existing project detected."));let i=e.yes;e.yes||(i=(await le.prompt([{type:"confirm",name:"shouldScaffold",message:"Create a new Next.js project here?",default:!0}])).shouldScaffold),i||(console.log(n.gray(`
+Aborted. Please run this in an existing Next.js project directory.
+`)),process.exit(0));let d=await ot(a,e.yes);d.success||(console.log(n.red(`
+\u274C Failed to scaffold Next.js project.`)),console.log(n.gray(`Please try manually: npx create-next-app@latest .
+`)),process.exit(1)),o=d.pkgManager,u=d.projectName,c=!0,h={name:"nextjs",version:"latest"},console.log(n.green(`
+\u2705 Created Next.js project: ${u}
+`)),await C.pathExists(E.join(a,"package.json"))||(console.log(n.red(`
+\u274C Scaffolded project missing package.json`)),process.exit(1))}else{let i=S("Detecting framework...").start(),d=await V();if(h={name:d.name,version:d.version},d.name!=="nextjs"){i.warn(`Detected: ${d.name} (limited support)`),console.log(n.yellow(`
+\u26A0\uFE0F  Currently only Next.js is fully supported.`)),console.log(n.gray(`Other frameworks coming soon: React, Vue, Svelte, Express
+`));let{continueAnyway:H}=await le.prompt([{type:"confirm",name:"continueAnyway",message:"Continue with manual setup?",default:!1}]);H||(console.log(n.gray(`
+Aborted.
+`)),process.exit(0))}else i.succeed(`Detected: ${n.green("Next.js")} ${d.version||""}`);o=await ye()}console.log(n.gray(`Using package manager: ${o}
+`));let p;e.yes?p={stripeSecretKey:process.env.STRIPE_SECRET_KEY||"",stripePublishableKey:process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY||"",webhookSecret:process.env.STRIPE_WEBHOOK_SECRET||"",databaseUrl:process.env.DATABASE_URL||"",template:e.template||"saas",createProducts:!e.skipStripe}:p={...await le.prompt([{type:"input",name:"stripeSecretKey",message:"Stripe Secret Key (sk_test_...):",default:process.env.STRIPE_SECRET_KEY,validate:d=>d.startsWith("sk_test_")||d.startsWith("sk_live_")?!0:"Must start with sk_test_ or sk_live_"},{type:"input",name:"stripePublishableKey",message:"Stripe Publishable Key (pk_test_...):",default:process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,validate:d=>d.startsWith("pk_test_")||d.startsWith("pk_live_")?!0:"Must start with pk_test_ or pk_live_"},{type:"input",name:"databaseUrl",message:"Database URL (postgresql://...):",default:process.env.DATABASE_URL,validate:d=>!d||d.trim()===""?"Database URL is required (use your Neon or local Postgres URL)":!d.startsWith("postgresql://")&&!d.startsWith("postgres://")?"Must start with postgresql:// or postgres://":!0},{type:"list",name:"template",message:"Choose your template:",choices:[{name:"SaaS Starter (pricing page + auth + dashboard)",value:"saas"},{name:"API Billing (usage-based pricing)",value:"api"},{name:"Simple Usage (metered billing)",value:"usage"},{name:"Minimal (just the SDK)",value:"minimal"}],default:e.template||"saas"},{type:"confirm",name:"createProducts",message:"Create Stripe products automatically?",default:!e.skipStripe}]),webhookSecret:""},console.log(n.blue.bold(`
+\u{1F4E6} Setting up drew-billing-cli...
+`));let m={projectScaffolded:c,dependencies:!1,stripeProducts:!1,database:!1,templates:!1,env:!1},x=[],f=S("Installing core dependencies...").start();try{await ce(["stripe","lucide-react"],o,f,!1,2,a),f.succeed("Core dependencies installed"),m.dependencies=!0}catch(i){f.fail("Failed to install core dependencies");let d=i instanceof Error?i.message:String(i);x.push(`Dependencies: ${d}`),console.log(n.gray(`Run manually: ${o} ${o==="npm"?"install":"add"} stripe lucide-react`))}let w=S("Installing database dependencies...").start();try{await ce(["drizzle-orm","@neondatabase/serverless","drizzle-kit"],o,w,!1,2,a),w.succeed("Database dependencies installed")}catch(i){w.fail("Failed to install database dependencies");let d=i instanceof Error?i.message:String(i);x.push(`DB Dependencies: ${d}`),console.log(n.gray(`Run manually: ${o} ${o==="npm"?"install":"add"} drizzle-orm @neondatabase/serverless drizzle-kit`))}let k=S("Installing dev dependencies...").start();try{await ce(["@types/node","typescript"],o,k,!0,2,a),k.succeed("Dev dependencies installed")}catch{k.warn("Some dev dependencies may need manual installation")}let Q=S("Installing UI components...").start();try{let i=["button","card","progress"];for(let d of i){Q.text=`Installing shadcn/ui ${d}...`;try{await _("npx",["shadcn@latest","add",d,"-y"],{cwd:a,stdio:"pipe",timeout:6e4})}catch{}}Q.succeed("UI components installed")}catch{Q.warn("Some UI components may need manual installation"),console.log(n.gray("Run manually: npx shadcn@latest add button card progress"))}let de=S("Installing toast notifications...").start();try{await _(o,[o==="npm"?"install":"add","sonner"],{cwd:a,stdio:"pipe",timeout:6e4}),de.succeed("Toast notifications installed")}catch{de.warn("sonner may need manual installation"),console.log(n.gray(`Run manually: ${o} ${o==="npm"?"install":"add"} sonner`))}console.log(n.gray(`
+Tip: Install the SDK for programmatic access:`)),console.log(n.cyan(`  ${o} ${o==="npm"?"install":"add"} @drew/billing-sdk
+`));let L=[];if(p.createProducts&&p.stripeSecretKey){let i=S("Creating Stripe products...").start();try{if(!p.stripeSecretKey.startsWith("sk_test_")&&!p.stripeSecretKey.startsWith("sk_live_"))throw new Error("Invalid Stripe secret key format");L=await ue(p.stripeSecretKey),i.succeed(`Created ${L.length} Stripe products`),m.stripeProducts=!0}catch(d){i.fail("Failed to create Stripe products");let H=d instanceof Error?d.message:String(d);x.push(`Stripe products: ${H}`),console.log(n.gray("You can create them manually in the Stripe Dashboard")),console.log(n.gray("Then update the price IDs in your code")),L=[{id:"prod_fallback",name:"Pro",priceId:"price_fallback_pro"},{id:"prod_fallback_2",name:"Enterprise",priceId:"price_fallback_enterprise"}]}}let ee=S("Setting up database...").start();try{await it(a),await lt(a,o,ee),ee.succeed("Database configured"),m.database=!0}catch(i){ee.fail("Database setup failed");let d=i instanceof Error?i.message:String(i);x.push(`Database: ${d}`),console.log(n.gray("You can set up the database later by running:")),console.log(n.gray("  npx drizzle-kit push")),console.log(n.gray(`
+Make sure to set DATABASE_URL in your .env.local file`))}let pe=S(`Installing ${p.template} template...`).start();try{await C.ensureDir(E.join(a,"app")),await C.ensureDir(E.join(a,"components")),await he(p.template,L,a),pe.succeed("Template installed"),m.templates=!0}catch(i){pe.fail("Template installation failed");let d=i instanceof Error?i.message:String(i);x.push(`Templates: ${d}`),console.log(n.gray("Try running:")),console.log(n.gray("  npx drew-billing-cli add all"))}let me=S("Updating environment variables...").start();try{let i={STRIPE_SECRET_KEY:p.stripeSecretKey,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:p.stripePublishableKey,STRIPE_WEBHOOK_SECRET:p.webhookSecret||"whsec_... (run: stripe listen --forward-to localhost:3000/api/webhooks/stripe)",DATABASE_URL:p.databaseUrl||"postgresql://username:password@localhost:5432/database_name",BILLING_API_URL:"http://localhost:3000"};await xe(i),me.succeed("Environment variables configured"),m.env=!0}catch(i){me.fail("Failed to update .env");let d=i instanceof Error?i.message:String(i);x.push(`Environment: ${d}`)}let te=Date.now()-s;if(ie(oe.INIT_COMPLETED,{template:p.template,durationMs:te,framework:h.name,success:Object.values(m).every(i=>i)}),Ee("init_complete",te),console.log(n.green.bold(`
+\u2705 Setup complete!
+`)),x.length>0&&(console.log(n.yellow("\u26A0\uFE0F  Some steps failed:")),x.forEach(i=>console.log(n.gray(`  \u2022 ${i}`))),console.log()),console.log(n.white(`Next steps:
+`)),m.projectScaffolded?(console.log(n.gray("1."),"Navigate to your project:",n.cyan(`cd ${u}`)),console.log(n.gray("2."),"Start your dev server:",n.cyan(`${o==="npm"?"npm run":o} dev`)),console.log(n.gray("3."),"Start Stripe webhook listener:",n.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"))):(console.log(n.gray("1."),"Start your dev server:",n.cyan(`${o==="npm"?"npm run":o} dev`)),console.log(n.gray("2."),"Start Stripe webhook listener:",n.cyan("stripe listen --forward-to http://localhost:3000/api/stripe/webhook"))),m.templates){let i=m.projectScaffolded?"4":"3";console.log(n.gray(`${i}.`),"Visit",n.cyan("http://localhost:3000/pricing"))}m.database||(console.log(n.gray(`
+\u26A0\uFE0F  Database not configured. Add DATABASE_URL to .env.local and run:`)),console.log(n.gray("   npx drizzle-kit push"))),console.log(),console.log(n.gray("Documentation:"),n.underline("https://github.com/drewsephski/monetize/tree/main/packages/cli#readme")),console.log(n.gray("Diagnostics:"),n.cyan("npx drew-billing-cli doctor")),console.log(n.gray("Support:"),n.underline("https://github.com/drewsephski/monetize/issues")),console.log(),L.length>0&&m.stripeProducts?(console.log(n.gray("Created Stripe products:")),L.forEach(i=>{console.log(n.gray(`  \u2022 ${i.name}: ${i.priceId}`))}),console.log()):L.length>0&&(console.log(n.gray("Placeholder product IDs (update these in your code):")),L.forEach(i=>{console.log(n.gray(`  \u2022 ${i.name}: ${i.priceId}`))}),console.log()),console.log(n.blue("\u{1F4CA} Help improve drew-billing-cli")),console.log(n.gray("Enable anonymous telemetry to help us fix bugs faster.")),console.log(n.gray(`Run: npx drew-billing-cli telemetry --enable
+`)),await _e("init_completed",{template:p.template,framework:h.name,durationMs:te,results:m})}async function nt(e){try{return(await C.readdir(e)).filter(t=>!t.startsWith(".")&&t!=="node_modules").length===0}catch{return!0}}async function ot(e,s=!1){let a=E.basename(e),t="npm";try{await _("bun",["--version"],{stdio:"pipe"}),t="bun"}catch{try{await _("pnpm",["--version"],{stdio:"pipe"}),t="pnpm"}catch{try{await _("yarn",["--version"],{stdio:"pipe"}),t="yarn"}catch{}}}let r=S(`Creating Next.js project with ${t}...`).start();try{let o=t==="npm"?"npx":t,u=[...t==="npm"?["create-next-app@latest"]:["create","next-app"],".","--typescript","--tailwind","--eslint","--app","--src-dir=false","--import-alias","@/*",...s?["--yes"]:[]];return await _(o,u,{cwd:e,stdio:"pipe",timeout:3e5}),r.succeed("Next.js project created"),{success:!0,pkgManager:t,projectName:a}}catch{if(r.fail("Failed to create Next.js project"),t!=="npm"){r.text="Retrying with npm...",r.start();try{return await _("npx",["create-next-app@latest",".","--typescript","--tailwind","--eslint","--app","--src-dir=false","--import-alias","@/*",...s?["--yes"]:[]],{cwd:e,stdio:"pipe",timeout:3e5}),r.succeed("Next.js project created with npm"),{success:!0,pkgManager:"npm",projectName:a}}catch{return r.fail("All attempts failed"),{success:!1,pkgManager:"npm",projectName:a}}}return{success:!1,pkgManager:t,projectName:a}}}async function ce(e,s,a,t=!1,r=2,o){let u=s==="npm"?"install":"add",h=t?s==="npm"?"--save-dev":"-D":"",c=[u,...e,...h?[h]:[]],p=o||process.cwd();for(let m=1;m<=r;m++)try{a.text=`Installing dependencies (attempt ${m}/${r})...`,await _(s,c,{cwd:p,stdio:"pipe",timeout:12e4});return}catch(x){let f=x instanceof Error?x.message:String(x);if(console.log(n.gray(`  Install attempt ${m} failed: ${f.substring(0,100)}`)),m===r)throw x;await new Promise(w=>setTimeout(w,2e3))}}async function it(e){let s=E.join(e,"drizzle.config.ts");if(await C.pathExists(s)||await C.pathExists(E.join(e,"drizzle.config.js")))return;await C.writeFile(s,`import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   schema: "./drizzle/schema.ts",
@@ -3065,11 +2053,7 @@ export default defineConfig({
     url: process.env.DATABASE_URL!,
   },
 });
-`;
-  await fs6.writeFile(drizzleConfigPath, configContent);
-  const schemaDir = path6.join(cwd, "drizzle");
-  await fs6.ensureDir(schemaDir);
-  const schemaContent = `import { pgTable, serial, varchar, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+`);let t=E.join(e,"drizzle");await C.ensureDir(t),await C.writeFile(E.join(t,"schema.ts"),`import { pgTable, serial, varchar, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
@@ -3092,722 +2076,49 @@ export const usageRecords = pgTable("usage_records", {
   recordedAt: timestamp("recorded_at").defaultNow(),
   metadata: jsonb("metadata"),
 });
-`;
-  await fs6.writeFile(path6.join(schemaDir, "schema.ts"), schemaContent);
-}
-async function setupDatabaseWithFallback(cwd, _pkgManager, spinner) {
-  try {
-    spinner.text = "Running database migrations...";
-    await execa2("npx", ["drizzle-kit", "push", "--force"], {
-      cwd,
-      stdio: "pipe",
-      timeout: 6e4,
-      env: { ...process.env, SKIP_ENV_VALIDATION: "true" }
-    });
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    if (errorMsg.includes("DATABASE_URL") || errorMsg.includes("database")) {
-      throw new Error("DATABASE_URL not configured. Please add it to .env.local");
-    }
-    throw error;
-  }
-}
-
-// src/commands/verify.ts
-import chalk6 from "chalk";
-import ora3 from "ora";
-import fs7 from "fs-extra";
-import path7 from "path";
-async function verifyCommand() {
-  console.log(chalk6.blue.bold("\n\u{1F50D} @drew/billing verify\n"));
-  console.log(chalk6.gray("Checking your billing setup...\n"));
-  const results = [];
-  const envSpinner = ora3("Checking environment variables...").start();
-  try {
-    const envPath = path7.join(process.cwd(), ".env.local");
-    const envExists = await fs7.pathExists(envPath);
-    if (!envExists) {
-      results.push({
-        name: "Environment File",
-        status: "fail",
-        message: ".env.local not found"
-      });
-      envSpinner.fail();
-    } else {
-      const envContent = await fs7.readFile(envPath, "utf-8");
-      const requiredVars = [
-        "STRIPE_SECRET_KEY",
-        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
-      ];
-      const missing = requiredVars.filter((v) => !envContent.includes(v));
-      if (missing.length > 0) {
-        results.push({
-          name: "Environment Variables",
-          status: "fail",
-          message: `Missing: ${missing.join(", ")}`
-        });
-        envSpinner.fail();
-      } else {
-        results.push({
-          name: "Environment Variables",
-          status: "pass",
-          message: "All required variables present"
-        });
-        envSpinner.succeed();
-      }
-    }
-  } catch {
-    results.push({
-      name: "Environment Variables",
-      status: "fail",
-      message: "Could not read .env file"
-    });
-    envSpinner.fail();
-  }
-  const stripeSpinner = ora3("Checking Stripe connection...").start();
-  try {
-    const Stripe2 = (await import("stripe")).default;
-    const stripe = new Stripe2(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2023-10-16"
-    });
-    const account = await stripe.accounts.retrieve();
-    results.push({
-      name: "Stripe API",
-      status: "pass",
-      message: `Connected to ${account.settings?.dashboard?.display_name || "Stripe account"}`
-    });
-    stripeSpinner.succeed();
-  } catch {
-    results.push({
-      name: "Stripe API",
-      status: "fail",
-      message: "Could not connect to Stripe API"
-    });
-    stripeSpinner.fail();
-  }
-  const dbSpinner = ora3("Checking database...").start();
-  try {
-    const hasDrizzleConfig = await fs7.pathExists(
-      path7.join(process.cwd(), "drizzle.config.ts")
-    );
-    const hasSchema = await fs7.pathExists(
-      path7.join(process.cwd(), "drizzle/schema.ts")
-    );
-    if (hasDrizzleConfig && hasSchema) {
-      results.push({
-        name: "Database Setup",
-        status: "pass",
-        message: "Drizzle ORM configured"
-      });
-      dbSpinner.succeed();
-    } else {
-      results.push({
-        name: "Database Setup",
-        status: "warn",
-        message: "Database configuration not detected"
-      });
-      dbSpinner.warn();
-    }
-  } catch {
-    results.push({
-      name: "Database Setup",
-      status: "warn",
-      message: "Could not verify database setup"
-    });
-    dbSpinner.warn();
-  }
-  const apiSpinner = ora3("Checking API routes...").start();
-  try {
-    const requiredRoutes = [
-      "api/checkout/route.ts",
-      "api/webhooks/stripe/route.ts",
-      "api/entitlements/[userId]/route.ts"
-    ];
-    const appDir = path7.join(process.cwd(), "app");
-    const missingRoutes = [];
-    for (const route of requiredRoutes) {
-      const fullPath = path7.join(appDir, route);
-      if (!await fs7.pathExists(fullPath)) {
-        missingRoutes.push(route);
-      }
-    }
-    if (missingRoutes.length > 0) {
-      results.push({
-        name: "API Routes",
-        status: "warn",
-        message: `Missing routes: ${missingRoutes.length}`
-      });
-      apiSpinner.warn();
-    } else {
-      results.push({
-        name: "API Routes",
-        status: "pass",
-        message: "All required routes present"
-      });
-      apiSpinner.succeed();
-    }
-  } catch {
-    results.push({
-      name: "API Routes",
-      status: "warn",
-      message: "Could not verify API routes"
-    });
-    apiSpinner.warn();
-  }
-  const sdkSpinner = ora3("Checking SDK...").start();
-  try {
-    const packageJson = await fs7.readJson(path7.join(process.cwd(), "package.json"));
-    const hasStripe = packageJson.dependencies?.["stripe"] || packageJson.devDependencies?.["stripe"];
-    if (hasStripe) {
-      results.push({
-        name: "Stripe SDK",
-        status: "pass",
-        message: "stripe SDK installed"
-      });
-      sdkSpinner.succeed();
-    } else {
-      results.push({
-        name: "Stripe SDK",
-        status: "fail",
-        message: "Stripe SDK not found in dependencies"
-      });
-      sdkSpinner.fail();
-    }
-  } catch {
-    results.push({
-      name: "SDK Installation",
-      status: "fail",
-      message: "Could not check package.json"
-    });
-    sdkSpinner.fail();
-  }
-  console.log(chalk6.blue.bold("\n\u{1F4CA} Summary\n"));
-  const passed = results.filter((r) => r.status === "pass").length;
-  const failed = results.filter((r) => r.status === "fail").length;
-  results.forEach((result) => {
-    const icon = result.status === "pass" ? chalk6.green("\u2713") : result.status === "fail" ? chalk6.red("\u2717") : chalk6.yellow("\u26A0");
-    const color = result.status === "pass" ? chalk6.green : result.status === "fail" ? chalk6.red : chalk6.yellow;
-    console.log(`${icon} ${color(result.name)}`);
-    console.log(chalk6.gray(`  ${result.message}`));
-  });
-  console.log();
-  if (failed === 0) {
-    console.log(chalk6.green.bold("\u2705 All checks passed!"));
-    console.log(chalk6.gray("Your billing setup looks good."));
-  } else if (failed > 0 && passed > 0) {
-    console.log(chalk6.yellow.bold("\u26A0\uFE0F  Some checks failed"));
-    console.log(chalk6.gray("Review the issues above to complete your setup."));
-  } else {
-    console.log(chalk6.red.bold("\u274C Setup incomplete"));
-    console.log(chalk6.gray("Run: npx @drew/billing init"));
-  }
-  console.log();
-  console.log(chalk6.gray("Next steps:"));
-  console.log(chalk6.gray("  \u2022 Start dev server: npm run dev"));
-  console.log(chalk6.gray("  \u2022 Start webhook listener: stripe listen --forward-to localhost:3000/api/webhooks/stripe"));
-  console.log(chalk6.gray("  \u2022 View docs: https://github.com/drewsephski/monetize/tree/main/packages/cli#readme"));
-  console.log();
-}
-
-// src/commands/sandbox.ts
-import chalk7 from "chalk";
-import ora4 from "ora";
-import fs8 from "fs-extra";
-import path8 from "path";
-async function sandboxCommand(options) {
-  console.log(chalk7.blue.bold("\n\u{1F3D6}\uFE0F  @drew/billing sandbox\n"));
-  const envPath = path8.join(process.cwd(), ".env.local");
-  let envContent = "";
-  try {
-    envContent = await fs8.readFile(envPath, "utf-8");
-  } catch (error) {
-  }
-  let newSandboxState;
-  if (options.enable) {
-    newSandboxState = true;
-  } else if (options.disable) {
-    newSandboxState = false;
-  } else {
-    const currentMatch = envContent.match(/BILLING_SANDBOX_MODE=(true|false)/);
-    const currentState = currentMatch ? currentMatch[1] === "true" : false;
-    newSandboxState = !currentState;
-  }
-  const spinner = ora4(
-    newSandboxState ? "Enabling sandbox mode..." : "Disabling sandbox mode..."
-  ).start();
-  try {
-    if (envContent.includes("BILLING_SANDBOX_MODE=")) {
-      envContent = envContent.replace(
-        /BILLING_SANDBOX_MODE=(true|false)/,
-        `BILLING_SANDBOX_MODE=${newSandboxState}`
-      );
-    } else {
-      envContent += `
+`)}async function lt(e,s,a){try{a.text="Running database migrations...",await _("npx",["drizzle-kit","push","--force"],{cwd:e,stdio:"pipe",timeout:6e4,env:{...process.env,SKIP_ENV_VALIDATION:"true"}})}catch(t){let r=t instanceof Error?t.message:String(t);throw r.includes("DATABASE_URL")||r.includes("database")?new Error("DATABASE_URL not configured. Please add it to .env.local"):t}}import b from"chalk";import K from"ora";import z from"fs-extra";import F from"path";async function Le(){console.log(b.blue.bold(`
+\u{1F50D} @drew/billing verify
+`)),console.log(b.gray(`Checking your billing setup...
+`));let e=[],s=K("Checking environment variables...").start();try{let c=F.join(process.cwd(),".env.local");if(!await z.pathExists(c))e.push({name:"Environment File",status:"fail",message:".env.local not found"}),s.fail();else{let m=await z.readFile(c,"utf-8"),f=["STRIPE_SECRET_KEY","NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"].filter(w=>!m.includes(w));f.length>0?(e.push({name:"Environment Variables",status:"fail",message:`Missing: ${f.join(", ")}`}),s.fail()):(e.push({name:"Environment Variables",status:"pass",message:"All required variables present"}),s.succeed())}}catch{e.push({name:"Environment Variables",status:"fail",message:"Could not read .env file"}),s.fail()}let a=K("Checking Stripe connection...").start();try{let c=(await import("stripe")).default,m=await new c(process.env.STRIPE_SECRET_KEY,{apiVersion:"2023-10-16"}).accounts.retrieve();e.push({name:"Stripe API",status:"pass",message:`Connected to ${m.settings?.dashboard?.display_name||"Stripe account"}`}),a.succeed()}catch{e.push({name:"Stripe API",status:"fail",message:"Could not connect to Stripe API"}),a.fail()}let t=K("Checking database...").start();try{let c=await z.pathExists(F.join(process.cwd(),"drizzle.config.ts")),p=await z.pathExists(F.join(process.cwd(),"drizzle/schema.ts"));c&&p?(e.push({name:"Database Setup",status:"pass",message:"Drizzle ORM configured"}),t.succeed()):(e.push({name:"Database Setup",status:"warn",message:"Database configuration not detected"}),t.warn())}catch{e.push({name:"Database Setup",status:"warn",message:"Could not verify database setup"}),t.warn()}let r=K("Checking API routes...").start();try{let c=["api/checkout/route.ts","api/webhooks/stripe/route.ts","api/entitlements/[userId]/route.ts"],p=F.join(process.cwd(),"app"),m=[];for(let x of c){let f=F.join(p,x);await z.pathExists(f)||m.push(x)}m.length>0?(e.push({name:"API Routes",status:"warn",message:`Missing routes: ${m.length}`}),r.warn()):(e.push({name:"API Routes",status:"pass",message:"All required routes present"}),r.succeed())}catch{e.push({name:"API Routes",status:"warn",message:"Could not verify API routes"}),r.warn()}let o=K("Checking SDK...").start();try{let c=await z.readJson(F.join(process.cwd(),"package.json"));c.dependencies?.stripe||c.devDependencies?.stripe?(e.push({name:"Stripe SDK",status:"pass",message:"stripe SDK installed"}),o.succeed()):(e.push({name:"Stripe SDK",status:"fail",message:"Stripe SDK not found in dependencies"}),o.fail())}catch{e.push({name:"SDK Installation",status:"fail",message:"Could not check package.json"}),o.fail()}console.log(b.blue.bold(`
+\u{1F4CA} Summary
+`));let u=e.filter(c=>c.status==="pass").length,h=e.filter(c=>c.status==="fail").length;e.forEach(c=>{let p=c.status==="pass"?b.green("\u2713"):c.status==="fail"?b.red("\u2717"):b.yellow("\u26A0"),m=c.status==="pass"?b.green:c.status==="fail"?b.red:b.yellow;console.log(`${p} ${m(c.name)}`),console.log(b.gray(`  ${c.message}`))}),console.log(),h===0?(console.log(b.green.bold("\u2705 All checks passed!")),console.log(b.gray("Your billing setup looks good."))):h>0&&u>0?(console.log(b.yellow.bold("\u26A0\uFE0F  Some checks failed")),console.log(b.gray("Review the issues above to complete your setup."))):(console.log(b.red.bold("\u274C Setup incomplete")),console.log(b.gray("Run: npx drew-billing-cli init"))),console.log(),console.log(b.gray("Next steps:")),console.log(b.gray("  \u2022 Start dev server: npm run dev")),console.log(b.gray("  \u2022 Start webhook listener: stripe listen --forward-to localhost:3000/api/webhooks/stripe")),console.log(b.gray("  \u2022 View docs: https://github.com/drewsephski/monetize/tree/main/packages/cli#readme")),console.log()}import v from"chalk";import ct from"ora";import Ue from"fs-extra";import dt from"path";async function je(e){console.log(v.blue.bold(`
+\u{1F3D6}\uFE0F  @drew/billing sandbox
+`));let s=dt.join(process.cwd(),".env.local"),a="";try{a=await Ue.readFile(s,"utf-8")}catch{}let t;if(e.enable)t=!0;else if(e.disable)t=!1;else{let o=a.match(/BILLING_SANDBOX_MODE=(true|false)/);t=!(o?o[1]==="true":!1)}let r=ct(t?"Enabling sandbox mode...":"Disabling sandbox mode...").start();try{a.includes("BILLING_SANDBOX_MODE=")?a=a.replace(/BILLING_SANDBOX_MODE=(true|false)/,`BILLING_SANDBOX_MODE=${t}`):a+=`
 # Sandbox mode - no real charges
-BILLING_SANDBOX_MODE=${newSandboxState}
-`;
-    }
-    await fs8.writeFile(envPath, envContent);
-    spinner.succeed();
-  } catch (error) {
-    spinner.fail("Failed to update sandbox mode");
-    console.log(error);
-    process.exit(1);
-  }
-  if (newSandboxState) {
-    console.log(chalk7.green.bold("\n\u2705 Sandbox mode ENABLED\n"));
-    console.log(chalk7.gray("What this means:"));
-    console.log(chalk7.gray("  \u2022 No real charges will be processed"));
-    console.log(chalk7.gray("  \u2022 Stripe test mode API keys used"));
-    console.log(chalk7.gray("  \u2022 Webhooks simulated locally"));
-    console.log(chalk7.gray("  \u2022 Usage tracked but not billed"));
-    console.log();
-    console.log(chalk7.yellow("Perfect for development and testing!"));
-  } else {
-    console.log(chalk7.yellow.bold("\n\u26A0\uFE0F  Sandbox mode DISABLED\n"));
-    console.log(chalk7.gray("What this means:"));
-    console.log(chalk7.gray("  \u2022 Real charges will be processed"));
-    console.log(chalk7.gray("  \u2022 Stripe live mode API keys required"));
-    console.log(chalk7.gray("  \u2022 Production webhooks active"));
-    console.log();
-    console.log(chalk7.red("Make sure you have live Stripe keys configured!"));
-  }
-  console.log();
-  console.log(chalk7.gray("Switch back anytime:"));
-  console.log(chalk7.cyan(`  npx @drew/billing sandbox`));
-  console.log();
-}
-
-// src/commands/whoami.ts
-import chalk8 from "chalk";
-import fs9 from "fs-extra";
-import path9 from "path";
-async function whoamiCommand() {
-  console.log(chalk8.blue.bold("\n\u{1F464} @drew/billing whoami\n"));
-  try {
-    const packageJson = await fs9.readJson(path9.join(process.cwd(), "package.json"));
-    console.log(chalk8.gray("Project:"), chalk8.white(packageJson.name || "Unknown"));
-    console.log(chalk8.gray("Version:"), chalk8.white(packageJson.version || "Unknown"));
-  } catch (error) {
-    console.log(chalk8.gray("Project:"), chalk8.yellow("Could not read package.json"));
-  }
-  const envPath = path9.join(process.cwd(), ".env.local");
-  const envVars = {};
-  try {
-    const envContent = await fs9.readFile(envPath, "utf-8");
-    envContent.split("\n").forEach((line) => {
-      const match = line.match(/^([A-Z_]+)=(.+)$/);
-      if (match) {
-        envVars[match[1]] = match[2].replace(/^["']/, "").replace(/["']$/, "");
-      }
-    });
-  } catch (error) {
-  }
-  console.log();
-  console.log(chalk8.gray("Environment:"));
-  const stripeKey = envVars.STRIPE_SECRET_KEY || "";
-  const isTestMode = stripeKey.startsWith("sk_test_");
-  const isLiveMode = stripeKey.startsWith("sk_live_");
-  if (isTestMode) {
-    console.log(chalk8.gray("  Stripe:"), chalk8.yellow("TEST MODE"));
-  } else if (isLiveMode) {
-    console.log(chalk8.gray("  Stripe:"), chalk8.green("LIVE MODE \u26A0\uFE0F"));
-  } else {
-    console.log(chalk8.gray("  Stripe:"), chalk8.red("Not configured"));
-  }
-  const sandboxMode = envVars.BILLING_SANDBOX_MODE === "true";
-  console.log(
-    chalk8.gray("  Sandbox:"),
-    sandboxMode ? chalk8.green("Enabled") : chalk8.gray("Disabled")
-  );
-  const apiUrl = envVars.NEXT_PUBLIC_BILLING_API_URL || envVars.BILLING_API_URL;
-  console.log(chalk8.gray("  API URL:"), apiUrl || chalk8.red("Not set"));
-  try {
-    const packageJson = await fs9.readJson(path9.join(process.cwd(), "package.json"));
-    const sdkVersion = packageJson.dependencies?.["@drew/billing-sdk"] || packageJson.devDependencies?.["@drew/billing-sdk"];
-    if (sdkVersion) {
-      console.log(chalk8.gray("  SDK:"), sdkVersion);
-    } else {
-      console.log(chalk8.gray("  SDK:"), chalk8.red("Not installed"));
-    }
-  } catch (error) {
-  }
-  console.log();
-  const componentsPath = path9.join(process.cwd(), "components/billing");
-  try {
-    const components = await fs9.readdir(componentsPath);
-    const componentFiles = components.filter((f) => f.endsWith(".tsx"));
-    if (componentFiles.length > 0) {
-      console.log(chalk8.gray("Installed Components:"));
-      componentFiles.forEach((file) => {
-        console.log(chalk8.gray("  \u2022"), file.replace(".tsx", ""));
-      });
-    } else {
-      console.log(chalk8.gray("Components:"), chalk8.yellow("None installed"));
-      console.log(chalk8.gray("  Install with: npx @drew/billing add <component>"));
-    }
-  } catch (error) {
-    console.log(chalk8.gray("Components:"), chalk8.yellow("None installed"));
-  }
-  console.log();
-  const hasDrizzleConfig = await fs9.pathExists(
-    path9.join(process.cwd(), "drizzle.config.ts")
-  );
-  console.log(
-    chalk8.gray("Database:"),
-    hasDrizzleConfig ? chalk8.green("Configured") : chalk8.yellow("Not configured")
-  );
-  const apiDir = path9.join(process.cwd(), "app/api");
-  const hasCheckout = await fs9.pathExists(path9.join(apiDir, "checkout/route.ts"));
-  const hasWebhooks = await fs9.pathExists(path9.join(apiDir, "webhooks/stripe/route.ts"));
-  console.log(chalk8.gray("API Routes:"));
-  console.log(chalk8.gray("  /api/checkout"), hasCheckout ? chalk8.green("\u2713") : chalk8.red("\u2717"));
-  console.log(chalk8.gray("  /api/webhooks/stripe"), hasWebhooks ? chalk8.green("\u2713") : chalk8.red("\u2717"));
-  console.log();
-  console.log(chalk8.gray("Commands:"));
-  console.log(chalk8.gray("  init       Initialize billing"));
-  console.log(chalk8.gray("  add        Add UI components"));
-  console.log(chalk8.gray("  verify     Verify setup"));
-  console.log(chalk8.gray("  sandbox    Toggle sandbox mode"));
-  console.log();
-}
-
-// src/commands/telemetry.ts
-import chalk9 from "chalk";
-async function telemetryCommand(options) {
-  console.log(chalk9.blue.bold("\n\u{1F4CA} Telemetry Settings\n"));
-  const config = loadTelemetryConfig();
-  if (options.enable) {
-    enableTelemetry();
-    console.log(chalk9.green("\u2705 Anonymous telemetry enabled"));
-    console.log(chalk9.gray("\nWe collect:"));
-    console.log(chalk9.gray("  \u2022 Command usage (init, add, verify, etc.)"));
-    console.log(chalk9.gray("  \u2022 Performance metrics (timing)"));
-    console.log(chalk9.gray("  \u2022 Error reports (no stack traces with PII)"));
-    console.log(chalk9.gray("\nWe NEVER collect:"));
-    console.log(chalk9.gray("  \u2022 Personal information"));
-    console.log(chalk9.gray("  \u2022 Stripe keys or API credentials"));
-    console.log(chalk9.gray("  \u2022 Code or project details"));
-    console.log(chalk9.gray("  \u2022 IP addresses"));
-    trackEvent("telemetry_enabled");
-    return;
-  }
-  if (options.disable) {
-    disableTelemetry();
-    console.log(chalk9.yellow("\u274C Anonymous telemetry disabled"));
-    console.log(chalk9.gray("You can re-enable anytime with: npx @drew/billing telemetry --enable"));
-    return;
-  }
-  console.log(chalk9.white("Current status:"));
-  console.log(`  Enabled: ${config.enabled ? chalk9.green("Yes") : chalk9.red("No")}`);
-  if (config.machineId) {
-    console.log(`  Machine ID: ${chalk9.gray(config.machineId)}`);
-  }
-  if (config.optedInAt) {
-    console.log(`  Decision date: ${chalk9.gray(config.optedInAt)}`);
-  }
-  console.log(chalk9.gray("\nUsage:"));
-  console.log(chalk9.gray("  npx @drew/billing telemetry --enable   # Enable telemetry"));
-  console.log(chalk9.gray("  npx @drew/billing telemetry --disable  # Disable telemetry"));
-  console.log(chalk9.gray("  npx @drew/billing telemetry            # Show status\n"));
-  if (!config.optedInAt) {
-    console.log(chalk9.blue("\u{1F4A1} Why enable telemetry?"));
-    console.log(chalk9.gray("Anonymous data helps us improve the CLI and catch bugs faster."));
-    console.log(chalk9.gray("No personal information is ever collected.\n"));
-  }
-}
-
-// src/commands/doctor.ts
-import chalk10 from "chalk";
-import { readFileSync as readFileSync2, existsSync as existsSync2 } from "fs";
-import { join as join2 } from "path";
-import { execa as execa3 } from "execa";
-async function doctorCommand() {
-  console.log(chalk10.blue.bold("\n\u{1F50D} @drew/billing doctor\n"));
-  console.log(chalk10.gray("Running diagnostics...\n"));
-  const checks = [];
-  checks.push(await checkEnvironmentVariables());
-  checks.push(await checkApiConnectivity());
-  checks.push(await checkWebhookConfig());
-  checks.push(await checkDatabaseConnection());
-  checks.push(await checkStripeConfig());
-  checks.push(await checkDependencies());
-  checks.push(await checkFramework());
-  displayResults(checks);
-}
-async function checkEnvironmentVariables() {
-  const envPath = join2(process.cwd(), ".env.local");
-  const envExamplePath = join2(process.cwd(), ".env.example");
-  let envContent = "";
-  if (existsSync2(envPath)) {
-    envContent = readFileSync2(envPath, "utf-8");
-  } else if (existsSync2(join2(process.cwd(), ".env"))) {
-    envContent = readFileSync2(join2(process.cwd(), ".env"), "utf-8");
-  }
-  const requiredVars = [
-    "STRIPE_SECRET_KEY",
-    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
-    "STRIPE_WEBHOOK_SECRET"
-  ];
-  const missingVars = requiredVars.filter((v) => !envContent.includes(v));
-  if (missingVars.length === 0) {
-    return {
-      name: "Environment Variables",
-      status: "pass",
-      message: "All required variables configured"
-    };
-  }
-  const hasExample = existsSync2(envExamplePath);
-  return {
-    name: "Environment Variables",
-    status: "fail",
-    message: `Missing: ${missingVars.join(", ")}`,
-    fix: hasExample ? `cp .env.example .env.local && edit with your Stripe keys` : `Create .env.local with:
-${requiredVars.map((v) => `${v}=...`).join("\n")}`
-  };
-}
-async function checkApiConnectivity() {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2e3);
-    const response = await fetch("http://localhost:3000/api/health", {
-      signal: controller.signal
-    }).catch(() => null);
-    clearTimeout(timeoutId);
-    if (response?.ok) {
-      return {
-        name: "API Connectivity",
-        status: "pass",
-        message: "Billing API responding at localhost:3000"
-      };
-    }
-    return {
-      name: "API Connectivity",
-      status: "warn",
-      message: "Dev server not running or API not accessible",
-      fix: "Start dev server: npm run dev"
-    };
-  } catch {
-    return {
-      name: "API Connectivity",
-      status: "warn",
-      message: "Could not connect to localhost:3000",
-      fix: "Start dev server: npm run dev"
-    };
-  }
-}
-async function checkWebhookConfig() {
-  const envPath = join2(process.cwd(), ".env.local");
-  let webhookSecret = "";
-  if (existsSync2(envPath)) {
-    const content = readFileSync2(envPath, "utf-8");
-    const match = content.match(/STRIPE_WEBHOOK_SECRET=(.+)/);
-    if (match) webhookSecret = match[1].trim();
-  }
-  if (!webhookSecret || webhookSecret === "whsec_...") {
-    return {
-      name: "Webhook Configuration",
-      status: "fail",
-      message: "Webhook secret not configured",
-      fix: "1. Run: stripe listen --forward-to http://localhost:3000/api/stripe/webhook\n2. Copy webhook secret to .env.local"
-    };
-  }
-  if (webhookSecret.startsWith("whsec_")) {
-    return {
-      name: "Webhook Configuration",
-      status: "pass",
-      message: "Webhook secret configured"
-    };
-  }
-  return {
-    name: "Webhook Configuration",
-    status: "warn",
-    message: "Webhook secret format looks unusual",
-    fix: "Verify STRIPE_WEBHOOK_SECRET starts with 'whsec_'"
-  };
-}
-async function checkDatabaseConnection() {
-  try {
-    const hasDrizzleConfig = existsSync2(join2(process.cwd(), "drizzle.config.ts"));
-    if (!hasDrizzleConfig) {
-      return {
-        name: "Database Connection",
-        status: "fail",
-        message: "No Drizzle config found",
-        fix: "Run: npx @drew/billing init to set up database"
-      };
-    }
-    try {
-      await execa3("npx", ["drizzle-kit", "check"], {
-        cwd: process.cwd(),
-        timeout: 1e4,
-        reject: false
-      });
-      return {
-        name: "Database Connection",
-        status: "pass",
-        message: "Database configuration found"
-      };
-    } catch {
-      return {
-        name: "Database Connection",
-        status: "warn",
-        message: "Database config exists but connection not verified",
-        fix: "Run: npx drizzle-kit push to sync schema"
-      };
-    }
-  } catch {
-    return {
-      name: "Database Connection",
-      status: "warn",
-      message: "Could not verify database connection"
-    };
-  }
-}
-async function checkStripeConfig() {
-  const envPath = join2(process.cwd(), ".env.local");
-  let stripeKey = "";
-  if (existsSync2(envPath)) {
-    const content = readFileSync2(envPath, "utf-8");
-    const match = content.match(/STRIPE_SECRET_KEY=(.+)/);
-    if (match) stripeKey = match[1].trim();
-  }
-  if (!stripeKey) {
-    return {
-      name: "Stripe Configuration",
-      status: "fail",
-      message: "STRIPE_SECRET_KEY not found",
-      fix: "Add STRIPE_SECRET_KEY=sk_test_... to .env.local"
-    };
-  }
-  if (stripeKey.startsWith("sk_test_")) {
-    return {
-      name: "Stripe Configuration",
-      status: "pass",
-      message: "Test mode Stripe key configured"
-    };
-  }
-  if (stripeKey.startsWith("sk_live_")) {
-    return {
-      name: "Stripe Configuration",
-      status: "warn",
-      message: "\u26A0\uFE0F Live Stripe key detected",
-      fix: "Use test keys for development: https://dashboard.stripe.com/test/apikeys"
-    };
-  }
-  return {
-    name: "Stripe Configuration",
-    status: "fail",
-    message: "Invalid Stripe key format",
-    fix: "Key should start with sk_test_ or sk_live_"
-  };
-}
-async function checkDependencies() {
-  const packagePath = join2(process.cwd(), "package.json");
-  if (!existsSync2(packagePath)) {
-    return {
-      name: "Dependencies",
-      status: "fail",
-      message: "No package.json found",
-      fix: "Run: npm init"
-    };
-  }
-  try {
-    const pkg = JSON.parse(readFileSync2(packagePath, "utf-8"));
-    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-    const required = ["stripe", "drizzle-orm"];
-    const missing = required.filter((d) => !deps[d]);
-    if (missing.length === 0) {
-      return {
-        name: "Dependencies",
-        status: "pass",
-        message: "All required packages installed"
-      };
-    }
-    return {
-      name: "Dependencies",
-      status: "fail",
-      message: `Missing: ${missing.join(", ")}`,
-      fix: `npm install ${missing.join(" ")}`
-    };
-  } catch {
-    return {
-      name: "Dependencies",
-      status: "warn",
-      message: "Could not parse package.json"
-    };
-  }
-}
-async function checkFramework() {
-  const framework = await detectFramework();
-  if (framework.name === "nextjs") {
-    return {
-      name: "Framework Support",
-      status: "pass",
-      message: `Next.js ${framework.version || ""} detected`
-    };
-  }
-  return {
-    name: "Framework Support",
-    status: "warn",
-    message: `${framework.name} detected (limited support)`,
-    fix: "Next.js is fully supported. Other frameworks have basic support."
-  };
-}
-function displayResults(checks) {
-  const passed = checks.filter((c) => c.status === "pass").length;
-  const failed = checks.filter((c) => c.status === "fail").length;
-  const warnings = checks.filter((c) => c.status === "warn").length;
-  console.log(chalk10.white.bold("Results:\n"));
-  for (const check of checks) {
-    const icon = check.status === "pass" ? chalk10.green("\u2713") : check.status === "fail" ? chalk10.red("\u2717") : chalk10.yellow("\u26A0");
-    console.log(`${icon} ${chalk10.white(check.name)}`);
-    console.log(`  ${chalk10.gray(check.message)}`);
-    if (check.fix) {
-      console.log(`  ${chalk10.cyan("Fix:")} ${check.fix}`);
-    }
-    console.log();
-  }
-  console.log(chalk10.white.bold("Summary:"));
-  console.log(`  ${chalk10.green(`${passed} passing`)}`);
-  if (failed > 0) console.log(`  ${chalk10.red(`${failed} failing`)}`);
-  if (warnings > 0) console.log(`  ${chalk10.yellow(`${warnings} warnings`)}`);
-  if (failed === 0 && warnings === 0) {
-    console.log(chalk10.green.bold("\n\u2705 All checks passed! Your billing setup looks good.\n"));
-  } else if (failed === 0) {
-    console.log(chalk10.yellow("\n\u26A0\uFE0F  Some warnings - review above.\n"));
-  } else {
-    console.log(chalk10.red(`
-\u274C ${failed} issue(s) need attention. Run the suggested fixes above.
-`));
-    console.log(chalk10.gray("Need help? https://github.com/drewsephski/monetize/issues\n"));
-  }
-}
-
-// src/index.ts
-var program = new Command();
-program.name("@drew/billing").description("CLI for @drew/billing - Add subscriptions to your app in 10 minutes").version("1.0.0");
-program.command("init").description("Initialize @drew/billing in your Next.js project").option("--skip-stripe", "Skip Stripe product creation").option("--template <type>", "Template type (saas, api, usage)", "saas").option("--yes", "Skip prompts and use defaults").action(initCommand);
-program.command("add <component>").description("Add a billing component (pricing-table, upgrade-button, usage-meter)").option("--path <path>", "Custom installation path").action(addCommand);
-program.command("verify").description("Verify your billing setup is working correctly").action(verifyCommand);
-program.command("sandbox").description("Toggle sandbox mode for testing without real charges").option("--enable", "Enable sandbox mode").option("--disable", "Disable sandbox mode").action(sandboxCommand);
-program.command("whoami").description("Show current billing configuration").action(whoamiCommand);
-program.command("telemetry").description("Manage anonymous usage telemetry").option("--enable", "Enable telemetry").option("--disable", "Disable telemetry").action(telemetryCommand);
-program.command("doctor").description("Diagnose billing setup issues").action(doctorCommand);
-if (process.argv.length === 2) {
-  console.log(chalk11.blue.bold("\n\u26A1 @drew/billing\n"));
-  console.log("Add subscriptions to your app in 10 minutes.\n");
-  console.log(chalk11.gray("Quick start:"));
-  console.log("  npx @drew/billing init\n");
-  console.log(chalk11.gray("Commands:"));
-  console.log("  init       Initialize billing in your project");
-  console.log("  add        Add prebuilt UI components");
-  console.log("  verify     Verify your setup");
-  console.log("  sandbox    Toggle sandbox mode");
-  console.log("  whoami     Show current configuration");
-  console.log("  doctor     Diagnose setup issues");
-  console.log("  telemetry  Manage usage telemetry\n");
-  console.log(chalk11.gray("Documentation:"));
-  console.log("  https://billing.drew.dev/docs\n");
-}
-program.parse();
+BILLING_SANDBOX_MODE=${t}
+`,await Ue.writeFile(s,a),r.succeed()}catch(o){r.fail("Failed to update sandbox mode"),console.log(o),process.exit(1)}t?(console.log(v.green.bold(`
+\u2705 Sandbox mode ENABLED
+`)),console.log(v.gray("What this means:")),console.log(v.gray("  \u2022 No real charges will be processed")),console.log(v.gray("  \u2022 Stripe test mode API keys used")),console.log(v.gray("  \u2022 Webhooks simulated locally")),console.log(v.gray("  \u2022 Usage tracked but not billed")),console.log(),console.log(v.yellow("Perfect for development and testing!"))):(console.log(v.yellow.bold(`
+\u26A0\uFE0F  Sandbox mode DISABLED
+`)),console.log(v.gray("What this means:")),console.log(v.gray("  \u2022 Real charges will be processed")),console.log(v.gray("  \u2022 Stripe live mode API keys required")),console.log(v.gray("  \u2022 Production webhooks active")),console.log(),console.log(v.red("Make sure you have live Stripe keys configured!"))),console.log(),console.log(v.gray("Switch back anytime:")),console.log(v.cyan("  npx drew-billing-cli sandbox")),console.log()}import l from"chalk";import $ from"fs-extra";import j from"path";async function Re(){console.log(l.blue.bold(`
+\u{1F464} drew-billing-cli whoami
+`));try{let f=await $.readJson(j.join(process.cwd(),"package.json"));console.log(l.gray("Project:"),l.white(f.name||"Unknown")),console.log(l.gray("Version:"),l.white(f.version||"Unknown"))}catch{console.log(l.gray("Project:"),l.yellow("Could not read package.json"))}let e=j.join(process.cwd(),".env.local"),s={};try{(await $.readFile(e,"utf-8")).split(`
+`).forEach(w=>{let k=w.match(/^([A-Z_]+)=(.+)$/);k&&(s[k[1]]=k[2].replace(/^["']/,"").replace(/["']$/,""))})}catch{}console.log(),console.log(l.gray("Environment:"));let a=s.STRIPE_SECRET_KEY||"",t=a.startsWith("sk_test_"),r=a.startsWith("sk_live_");t?console.log(l.gray("  Stripe:"),l.yellow("TEST MODE")):r?console.log(l.gray("  Stripe:"),l.green("LIVE MODE \u26A0\uFE0F")):console.log(l.gray("  Stripe:"),l.red("Not configured"));let o=s.BILLING_SANDBOX_MODE==="true";console.log(l.gray("  Sandbox:"),o?l.green("Enabled"):l.gray("Disabled"));let u=s.NEXT_PUBLIC_BILLING_API_URL||s.BILLING_API_URL;console.log(l.gray("  API URL:"),u||l.red("Not set"));try{let f=await $.readJson(j.join(process.cwd(),"package.json")),w=f.dependencies?.["@drew/billing-sdk"]||f.devDependencies?.["@drew/billing-sdk"];w?console.log(l.gray("  SDK:"),w):console.log(l.gray("  SDK:"),l.red("Not installed"))}catch{}console.log();let h=j.join(process.cwd(),"components/billing");try{let w=(await $.readdir(h)).filter(k=>k.endsWith(".tsx"));w.length>0?(console.log(l.gray("Installed Components:")),w.forEach(k=>{console.log(l.gray("  \u2022"),k.replace(".tsx",""))})):(console.log(l.gray("Components:"),l.yellow("None installed")),console.log(l.gray("  Install with: npx drew-billing-cli add <component>")))}catch{console.log(l.gray("Components:"),l.yellow("None installed"))}console.log();let c=await $.pathExists(j.join(process.cwd(),"drizzle.config.ts"));console.log(l.gray("Database:"),c?l.green("Configured"):l.yellow("Not configured"));let p=j.join(process.cwd(),"app/api"),m=await $.pathExists(j.join(p,"checkout/route.ts")),x=await $.pathExists(j.join(p,"webhooks/stripe/route.ts"));console.log(l.gray("API Routes:")),console.log(l.gray("  /api/checkout"),m?l.green("\u2713"):l.red("\u2717")),console.log(l.gray("  /api/webhooks/stripe"),x?l.green("\u2713"):l.red("\u2717")),console.log(),console.log(l.gray("Commands:")),console.log(l.gray("  init       Initialize billing")),console.log(l.gray("  add        Add UI components")),console.log(l.gray("  verify     Verify setup")),console.log(l.gray("  sandbox    Toggle sandbox mode")),console.log()}import g from"chalk";async function De(e){console.log(g.blue.bold(`
+\u{1F4CA} Telemetry Settings
+`));let s=W();if(e.enable){Ie(),console.log(g.green("\u2705 Anonymous telemetry enabled")),console.log(g.gray(`
+We collect:`)),console.log(g.gray("  \u2022 Command usage (init, add, verify, etc.)")),console.log(g.gray("  \u2022 Performance metrics (timing)")),console.log(g.gray("  \u2022 Error reports (no stack traces with PII)")),console.log(g.gray(`
+We NEVER collect:`)),console.log(g.gray("  \u2022 Personal information")),console.log(g.gray("  \u2022 Stripe keys or API credentials")),console.log(g.gray("  \u2022 Code or project details")),console.log(g.gray("  \u2022 IP addresses")),O("telemetry_enabled");return}if(e.disable){Ce(),console.log(g.yellow("\u274C Anonymous telemetry disabled")),console.log(g.gray("You can re-enable anytime with: npx drew-billing-cli telemetry --enable"));return}console.log(g.white("Current status:")),console.log(`  Enabled: ${s.enabled?g.green("Yes"):g.red("No")}`),s.machineId&&console.log(`  Machine ID: ${g.gray(s.machineId)}`),s.optedInAt&&console.log(`  Decision date: ${g.gray(s.optedInAt)}`),console.log(g.gray(`
+Usage:`)),console.log(g.gray("  npx drew-billing-cli telemetry --enable   # Enable telemetry")),console.log(g.gray("  npx drew-billing-cli telemetry --disable  # Disable telemetry")),console.log(g.gray(`  npx drew-billing-cli telemetry            # Show status
+`)),s.optedInAt||(console.log(g.blue("\u{1F4A1} Why enable telemetry?")),console.log(g.gray("Anonymous data helps us improve the CLI and catch bugs faster.")),console.log(g.gray(`No personal information is ever collected.
+`)))}import y from"chalk";import{readFileSync as q,existsSync as M}from"fs";import{join as R}from"path";import{execa as pt}from"execa";async function Be(){console.log(y.blue.bold(`
+\u{1F50D} @drew/billing doctor
+`)),console.log(y.gray(`Running diagnostics...
+`));let e=[];e.push(await mt()),e.push(await ut()),e.push(await gt()),e.push(await ft()),e.push(await ht()),e.push(await bt()),e.push(await xt()),yt(e)}async function mt(){let e=R(process.cwd(),".env.local"),s=R(process.cwd(),".env.example"),a="";M(e)?a=q(e,"utf-8"):M(R(process.cwd(),".env"))&&(a=q(R(process.cwd(),".env"),"utf-8"));let t=["STRIPE_SECRET_KEY","NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY","STRIPE_WEBHOOK_SECRET"],r=t.filter(u=>!a.includes(u));if(r.length===0)return{name:"Environment Variables",status:"pass",message:"All required variables configured"};let o=M(s);return{name:"Environment Variables",status:"fail",message:`Missing: ${r.join(", ")}`,fix:o?"cp .env.example .env.local && edit with your Stripe keys":`Create .env.local with:
+${t.map(u=>`${u}=...`).join(`
+`)}`}}async function ut(){try{let e=new AbortController,s=setTimeout(()=>e.abort(),2e3),a=await fetch("http://localhost:3000/api/health",{signal:e.signal}).catch(()=>null);return clearTimeout(s),a?.ok?{name:"API Connectivity",status:"pass",message:"Billing API responding at localhost:3000"}:{name:"API Connectivity",status:"warn",message:"Dev server not running or API not accessible",fix:"Start dev server: npm run dev"}}catch{return{name:"API Connectivity",status:"warn",message:"Could not connect to localhost:3000",fix:"Start dev server: npm run dev"}}}async function gt(){let e=R(process.cwd(),".env.local"),s="";if(M(e)){let t=q(e,"utf-8").match(/STRIPE_WEBHOOK_SECRET=(.+)/);t&&(s=t[1].trim())}return!s||s==="whsec_..."?{name:"Webhook Configuration",status:"fail",message:"Webhook secret not configured",fix:`1. Run: stripe listen --forward-to http://localhost:3000/api/stripe/webhook
+2. Copy webhook secret to .env.local`}:s.startsWith("whsec_")?{name:"Webhook Configuration",status:"pass",message:"Webhook secret configured"}:{name:"Webhook Configuration",status:"warn",message:"Webhook secret format looks unusual",fix:"Verify STRIPE_WEBHOOK_SECRET starts with 'whsec_'"}}async function ft(){try{if(!M(R(process.cwd(),"drizzle.config.ts")))return{name:"Database Connection",status:"fail",message:"No Drizzle config found",fix:"Run: npx drew-billing-cli init to set up database"};try{return await pt("npx",["drizzle-kit","check"],{cwd:process.cwd(),timeout:1e4,reject:!1}),{name:"Database Connection",status:"pass",message:"Database configuration found"}}catch{return{name:"Database Connection",status:"warn",message:"Database config exists but connection not verified",fix:"Run: npx drizzle-kit push to sync schema"}}}catch{return{name:"Database Connection",status:"warn",message:"Could not verify database connection"}}}async function ht(){let e=R(process.cwd(),".env.local"),s="";if(M(e)){let t=q(e,"utf-8").match(/STRIPE_SECRET_KEY=(.+)/);t&&(s=t[1].trim())}return s?s.startsWith("sk_test_")?{name:"Stripe Configuration",status:"pass",message:"Test mode Stripe key configured"}:s.startsWith("sk_live_")?{name:"Stripe Configuration",status:"warn",message:"\u26A0\uFE0F Live Stripe key detected",fix:"Use test keys for development: https://dashboard.stripe.com/test/apikeys"}:{name:"Stripe Configuration",status:"fail",message:"Invalid Stripe key format",fix:"Key should start with sk_test_ or sk_live_"}:{name:"Stripe Configuration",status:"fail",message:"STRIPE_SECRET_KEY not found",fix:"Add STRIPE_SECRET_KEY=sk_test_... to .env.local"}}async function bt(){let e=R(process.cwd(),"package.json");if(!M(e))return{name:"Dependencies",status:"fail",message:"No package.json found",fix:"Run: npm init"};try{let s=JSON.parse(q(e,"utf-8")),a={...s.dependencies,...s.devDependencies},r=["stripe","drizzle-orm"].filter(o=>!a[o]);return r.length===0?{name:"Dependencies",status:"pass",message:"All required packages installed"}:{name:"Dependencies",status:"fail",message:`Missing: ${r.join(", ")}`,fix:`npm install ${r.join(" ")}`}}catch{return{name:"Dependencies",status:"warn",message:"Could not parse package.json"}}}async function xt(){let e=await V();return e.name==="nextjs"?{name:"Framework Support",status:"pass",message:`Next.js ${e.version||""} detected`}:{name:"Framework Support",status:"warn",message:`${e.name} detected (limited support)`,fix:"Next.js is fully supported. Other frameworks have basic support."}}function yt(e){let s=e.filter(r=>r.status==="pass").length,a=e.filter(r=>r.status==="fail").length,t=e.filter(r=>r.status==="warn").length;console.log(y.white.bold(`Results:
+`));for(let r of e){let o=r.status==="pass"?y.green("\u2713"):r.status==="fail"?y.red("\u2717"):y.yellow("\u26A0");console.log(`${o} ${y.white(r.name)}`),console.log(`  ${y.gray(r.message)}`),r.fix&&console.log(`  ${y.cyan("Fix:")} ${r.fix}`),console.log()}console.log(y.white.bold("Summary:")),console.log(`  ${y.green(`${s} passing`)}`),a>0&&console.log(`  ${y.red(`${a} failing`)}`),t>0&&console.log(`  ${y.yellow(`${t} warnings`)}`),a===0&&t===0?console.log(y.green.bold(`
+\u2705 All checks passed! Your billing setup looks good.
+`)):a===0?console.log(y.yellow(`
+\u26A0\uFE0F  Some warnings - review above.
+`)):(console.log(y.red(`
+\u274C ${a} issue(s) need attention. Run the suggested fixes above.
+`)),console.log(y.gray(`Need help? https://github.com/drewsephski/monetize/issues
+`)))}var A=new vt;A.name("drew-billing-cli").description("CLI for drew-billing - Add subscriptions to your app in 10 minutes").version("1.0.0");A.command("init").description("Initialize @drew/billing in your Next.js project").option("--skip-stripe","Skip Stripe product creation").option("--template <type>","Template type (saas, api, usage)","saas").option("--yes","Skip prompts and use defaults").action(Ae);A.command("add <component>").description("Add a billing component (pricing-table, upgrade-button, usage-meter)").option("--path <path>","Custom installation path").action(B);A.command("verify").description("Verify your billing setup is working correctly").action(Le);A.command("sandbox").description("Toggle sandbox mode for testing without real charges").option("--enable","Enable sandbox mode").option("--disable","Disable sandbox mode").action(je);A.command("whoami").description("Show current billing configuration").action(Re);A.command("telemetry").description("Manage anonymous usage telemetry").option("--enable","Enable telemetry").option("--disable","Disable telemetry").action(De);A.command("doctor").description("Diagnose billing setup issues").action(Be);process.argv.length===2&&(console.log(Z.blue.bold(`
+\u26A1 drew-billing-cli
+`)),console.log(`Add subscriptions to your app in 10 minutes.
+`),console.log(Z.gray("Quick start:")),console.log(`  npx drew-billing-cli init
+`),console.log(Z.gray("Commands:")),console.log("  init       Initialize billing in your project"),console.log("  add        Add prebuilt UI components"),console.log("  verify     Verify your setup"),console.log("  sandbox    Toggle sandbox mode"),console.log("  whoami     Show current configuration"),console.log("  doctor     Diagnose setup issues"),console.log(`  telemetry  Manage usage telemetry
+`),console.log(Z.gray("Documentation:")),console.log(`  https://billing.drew.dev/docs
+`));A.parse();
+//# sourceMappingURL=index.js.map

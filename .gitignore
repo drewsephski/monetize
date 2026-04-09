@@ -36,3 +36,9 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# package build artifacts
+packages/*/node_modules/
+packages/*/dist/
+packages/*/*.lock
+*.tgz

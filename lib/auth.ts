@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { bearer } from "better-auth/plugins";
 import { db } from "./db";
 import { users, sessions, accounts, verifications, customers } from "@/drizzle/schema";
 import { env } from "./env";
@@ -20,6 +21,7 @@ export const auth = betterAuth({
       verification: verifications,
     },
   }),
+  plugins: [bearer()],
   advanced: {
     database: {
       generateId: "uuid",

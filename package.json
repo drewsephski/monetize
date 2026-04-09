@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:sandbox": "NEXT_PUBLIC_BILLING_SANDBOX_MODE=true next dev --turbopack",
+    "test": "bun test",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

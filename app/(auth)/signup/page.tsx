@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,20 +21,26 @@ export default function SignUpPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await authClient.signUp.email({
+    const result = await authClient.signUp.email({
       name,
       email,
       password,
       callbackURL: "/dashboard",
     });
 
-    if (error) {
-      setError(error.message || "Failed to sign up");
+    if (result.error) {
+      setError(result.error.message || "Failed to sign up");
+      setLoading(false);
     } else {
+      // Signup successful - with autoSignIn and requireEmailVerification: false,
+      // user is automatically signed in and redirected to callbackURL
       setSuccess(true);
+      setLoading(false);
+      // Small delay to show success message, then redirect
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1500);
     }
-
-    setLoading(false);
   };
 
   if (success) {
@@ -63,7 +71,7 @@ export default function SignUpPage() {
             Account created!
           </h1>
           <p className="mb-8 text-[#78716c]">
-            Check your email to verify your account, then sign in to get started.
+            Welcome! Redirecting you to your dashboard...
           </p>
           <Link href="/signin">
             <Button className="bg-[#b8860b] px-8 py-3 text-base font-medium text-white hover:bg-[#8b6914]">

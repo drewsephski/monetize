@@ -12,7 +12,10 @@ const stripe = new Stripe(env.stripeSecretKey, {
 });
 
 export const auth = betterAuth({
+  baseURL: env.betterAuthUrl,
+  secret: env.betterAuthSecret,
   trustedOrigins: [
+    env.betterAuthUrl,
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     "https://monetize-two.vercel.app",
   ],
@@ -42,6 +45,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
+    requireEmailVerification: false, // Allow immediate signin after signup
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days

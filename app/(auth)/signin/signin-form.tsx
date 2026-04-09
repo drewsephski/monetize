@@ -19,23 +19,17 @@ export function SignInForm() {
     setLoading(true);
     setError(null);
 
-    await authClient.signIn.email(
-      {
-        email,
-        password,
-        callbackURL: callbackUrl,
-      },
-      {
-        onSuccess: () => {
-          // Hard redirect to ensure cookies are properly set and middleware validates session
-          window.location.href = callbackUrl;
-        },
-        onError: (ctx) => {
-          setError(ctx.error.message || "Failed to sign in");
-          setLoading(false);
-        },
-      }
-    );
+    const result = await authClient.signIn.email({
+      email,
+      password,
+      callbackURL: callbackUrl,
+    });
+
+    if (result.error) {
+      setError(result.error.message || "Failed to sign in");
+      setLoading(false);
+    }
+    // onSuccess: redirect happens automatically via callbackURL
   };
 
   return (

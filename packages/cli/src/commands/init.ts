@@ -84,12 +84,12 @@ export async function initCommand(options: InitOptions) {
     const spinner = ora("Detecting framework...").start();
     const framework = await detectFramework();
     detectedFramework = { name: framework.name as "nextjs", version: framework.version };
-    
+
     if (framework.name !== "nextjs") {
       spinner.warn(`Detected: ${framework.name} (limited support)`);
       console.log(chalk.yellow("\n⚠️  Currently only Next.js is fully supported."));
       console.log(chalk.gray("Other frameworks coming soon: React, Vue, Svelte, Express\n"));
-      
+
       const { continueAnyway } = await inquirer.prompt([
         {
           type: "confirm",
@@ -404,7 +404,6 @@ interface ScaffoldResult {
 
 async function scaffoldNextJsProject(cwd: string, yesMode: boolean = false): Promise<ScaffoldResult> {
   const projectName = path.basename(cwd);
-  const parentDir = path.dirname(cwd);
   
   // Check which package manager is available
   let pkgManager: PackageManager = "npm";
@@ -432,7 +431,7 @@ async function scaffoldNextJsProject(cwd: string, yesMode: boolean = false): Pro
     const createNextAppCmd = pkgManager === "npm" ? "npx" : pkgManager;
     const args = [
       ...(pkgManager === "npm" ? ["create-next-app@latest"] : ["create", "next-app"]),
-      projectName,
+      ".", // Use current directory, not a subdirectory
       "--typescript",
       "--tailwind",
       "--eslint",
@@ -442,9 +441,9 @@ async function scaffoldNextJsProject(cwd: string, yesMode: boolean = false): Pro
       ...(yesMode ? ["--yes"] : []),
     ];
 
-    // Run create-next-app in the parent directory
+    // Run create-next-app in the current directory
     await execa(createNextAppCmd, args, {
-      cwd: parentDir,
+      cwd,
       stdio: "pipe",
       timeout: 300000, // 5 minute timeout
     });
@@ -462,7 +461,7 @@ async function scaffoldNextJsProject(cwd: string, yesMode: boolean = false): Pro
       try {
         await execa("npx", [
           "create-next-app@latest",
-          projectName,
+          ".", // Use current directory
           "--typescript",
           "--tailwind",
           "--eslint",
@@ -471,7 +470,7 @@ async function scaffoldNextJsProject(cwd: string, yesMode: boolean = false): Pro
           "--import-alias", "@/*",
           ...(yesMode ? ["--yes"] : []),
         ], {
-          cwd: parentDir,
+          cwd,
           stdio: "pipe",
           timeout: 300000,
         });

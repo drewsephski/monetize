@@ -36,23 +36,8 @@ const nextConfig = {
     ];
   },
 
-  // Experimental features
-  experimental: {
-    // Enable instrumentation for Sentry
-    instrumentationHook: true,
-  },
-
-  // Webpack configuration for Sentry
-  webpack: (config, { isServer: _isServer }) => {
-    // Only run Sentry in production with DSN configured
-    if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
-      // Sentry source maps upload would be configured here
-      // via @sentry/webpack-plugin, installed separately
-      // _isServer can be used for server-specific config
-      void _isServer;
-    }
-    return config;
-  },
+  // Turbopack configuration
+  turbopack: {},
 };
 
 export default nextConfig

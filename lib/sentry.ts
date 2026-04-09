@@ -28,7 +28,7 @@ export function initSentry() {
     debug: process.env.NODE_ENV === 'development',
     
     // Before sending, filter out sensitive data
-    beforeSend(event: Sentry.Event) {
+    beforeSend(event: Sentry.ErrorEvent) {
       // Remove potentially sensitive headers
       if (event.request?.headers) {
         const headers = event.request.headers as { [key: string]: string };

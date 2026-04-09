@@ -8,12 +8,13 @@ npx drew-billing-cli init
 
 ## What it does
 
-1. Detects your framework (Next.js, React, etc.)
-2. Creates Stripe products and prices
-3. Sets up database schema
-4. Installs billing components and templates
-5. Configures environment variables
-6. Tracks setup progress with telemetry
+1. **Scaffolds a new Next.js project** (in empty directories) using `create-next-app`
+2. Detects your framework (Next.js, React, etc.)
+3. Creates Stripe products and prices
+4. Sets up database schema
+5. Installs billing components and templates
+6. Configures environment variables
+7. Tracks setup progress with telemetry
 
 ## Templates
 

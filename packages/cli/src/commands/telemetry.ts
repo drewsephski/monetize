@@ -42,7 +42,7 @@ export async function telemetryCommand(options: TelemetryOptions) {
   if (options.disable) {
     disableTelemetry();
     console.log(chalk.yellow("❌ Anonymous telemetry disabled"));
-    console.log(chalk.gray("You can re-enable anytime with: npx @drew/billing telemetry --enable"));
+    console.log(chalk.gray("You can re-enable anytime with: npx drew-billing-cli telemetry --enable"));
     return;
   }
 
@@ -59,9 +59,9 @@ export async function telemetryCommand(options: TelemetryOptions) {
   }
 
   console.log(chalk.gray("\nUsage:"));
-  console.log(chalk.gray("  npx @drew/billing telemetry --enable   # Enable telemetry"));
-  console.log(chalk.gray("  npx @drew/billing telemetry --disable  # Disable telemetry"));
-  console.log(chalk.gray("  npx @drew/billing telemetry            # Show status\n"));
+  console.log(chalk.gray("  npx drew-billing-cli telemetry --enable   # Enable telemetry"));
+  console.log(chalk.gray("  npx drew-billing-cli telemetry --disable  # Disable telemetry"));
+  console.log(chalk.gray("  npx drew-billing-cli telemetry            # Show status\n"));
 
   if (!config.optedInAt) {
     console.log(chalk.blue("💡 Why enable telemetry?"));

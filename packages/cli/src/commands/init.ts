@@ -38,7 +38,7 @@ interface InitResults {
 }
 
 export async function initCommand(options: InitOptions) {
-  console.log(chalk.blue.bold("\n⚡ @drew/billing init\n"));
+  console.log(chalk.blue.bold("\n⚡ drew-billing-cli init\n"));
 
   // Track init started
   trackFunnel(FunnelStage.INIT_STARTED, { template: options.template });
@@ -205,8 +205,7 @@ export async function initCommand(options: InitOptions) {
     config = { ...answers, webhookSecret: "" };
   }
 
-  // Setup steps
-  console.log(chalk.blue.bold("\n📦 Setting up @drew/billing...\n"));
+  console.log(chalk.blue.bold("\n📦 Setting up drew-billing-cli...\n"));
 
   const results: InitResults = {
     projectScaffolded,
@@ -219,17 +218,17 @@ export async function initCommand(options: InitOptions) {
 
   const errors: string[] = [];
 
-  // 1. Install core dependencies first (stripe is essential)
+  // 1. Install core dependencies first (stripe and lucide-react are essential)
   const depsSpinner = ora("Installing core dependencies...").start();
   try {
-    await installWithRetry(["stripe"], pkgManager, depsSpinner, false, 2, cwd);
+    await installWithRetry(["stripe", "lucide-react"], pkgManager, depsSpinner, false, 2, cwd);
     depsSpinner.succeed("Core dependencies installed");
     results.dependencies = true;
   } catch (error) {
     depsSpinner.fail("Failed to install core dependencies");
     const errorMsg = error instanceof Error ? error.message : String(error);
     errors.push(`Dependencies: ${errorMsg}`);
-    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} stripe`));
+    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} stripe lucide-react`));
   }
 
   // 1b. Install database dependencies (drizzle-kit must be installed before push)
@@ -260,8 +259,47 @@ export async function initCommand(options: InitOptions) {
     devDepsSpinner.warn("Some dev dependencies may need manual installation");
   }
 
-  // 1d. Note about SDK
-  console.log(chalk.gray("\nNote: @drew/billing-sdk will be available when published. For now, the CLI provides all needed components.\n"));
+  // 1d. Install shadcn/ui components
+  const shadcnSpinner = ora("Installing UI components...").start();
+  try {
+    // Install shadcn/ui base components needed by the billing components
+    const shadcnComponents = ["button", "card", "progress"];
+    for (const component of shadcnComponents) {
+      shadcnSpinner.text = `Installing shadcn/ui ${component}...`;
+      try {
+        await execa("npx", ["shadcn@latest", "add", component, "-y"], {
+          cwd,
+          stdio: "pipe",
+          timeout: 60000,
+        });
+      } catch {
+        // Component might already exist or shadcn might not be initialized
+        // Continue with other components
+      }
+    }
+    shadcnSpinner.succeed("UI components installed");
+  } catch {
+    shadcnSpinner.warn("Some UI components may need manual installation");
+    console.log(chalk.gray(`Run manually: npx shadcn@latest add button card progress`));
+  }
+
+  // 1e. Install sonner for toast notifications
+  const sonnerSpinner = ora("Installing toast notifications...").start();
+  try {
+    await execa(pkgManager, [pkgManager === "npm" ? "install" : "add", "sonner"], {
+      cwd,
+      stdio: "pipe",
+      timeout: 60000,
+    });
+    sonnerSpinner.succeed("Toast notifications installed");
+  } catch {
+    sonnerSpinner.warn("sonner may need manual installation");
+    console.log(chalk.gray(`Run manually: ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} sonner`));
+  }
+
+  // 1f. Note about SDK
+  console.log(chalk.gray("\nTip: Install the SDK for programmatic access:"));
+  console.log(chalk.cyan(`  ${pkgManager} ${pkgManager === "npm" ? "install" : "add"} @drew/billing-sdk\n`));
 
   // 2. Create Stripe products (with better error handling)
   let products: Array<{ id: string; name: string; priceId: string }> = [];
@@ -325,7 +363,7 @@ export async function initCommand(options: InitOptions) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     errors.push(`Templates: ${errorMsg}`);
     console.log(chalk.gray("Try running:"));
-    console.log(chalk.gray("  npx @drew/billing add all"));
+    console.log(chalk.gray("  npx drew-billing-cli add all"));
   }
 
   // 5. Update environment variables (with fallback for DB URL)
@@ -411,9 +449,9 @@ export async function initCommand(options: InitOptions) {
   }
 
   // Telemetry prompt
-  console.log(chalk.blue("📊 Help improve @drew/billing"));
+  console.log(chalk.blue("📊 Help improve drew-billing-cli"));
   console.log(chalk.gray("Enable anonymous telemetry to help us fix bugs faster."));
-  console.log(chalk.gray("Run: npx @drew/billing telemetry --enable\n"));
+  console.log(chalk.gray("Run: npx drew-billing-cli telemetry --enable\n"));
 
   // Feedback collection
   await promptForFeedback("init_completed", {

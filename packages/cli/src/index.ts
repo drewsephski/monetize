@@ -13,8 +13,8 @@ import { doctorCommand } from "./commands/doctor.js";
 const program = new Command();
 
 program
-  .name("@drew/billing")
-  .description("CLI for @drew/billing - Add subscriptions to your app in 10 minutes")
+  .name("drew-billing-cli")
+  .description("CLI for drew-billing - Add subscriptions to your app in 10 minutes")
   .version("1.0.0");
 
 program
@@ -62,10 +62,10 @@ program
 
 // Default help
 if (process.argv.length === 2) {
-  console.log(chalk.blue.bold("\n⚡ @drew/billing\n"));
+  console.log(chalk.blue.bold("\n⚡ drew-billing-cli\n"));
   console.log("Add subscriptions to your app in 10 minutes.\n");
   console.log(chalk.gray("Quick start:"));
-  console.log("  npx @drew/billing init\n");
+  console.log("  npx drew-billing-cli init\n");
   console.log(chalk.gray("Commands:"));
   console.log("  init       Initialize billing in your project");
   console.log("  add        Add prebuilt UI components");

@@ -61,7 +61,7 @@ interface AddOptions {
 }
 
 export async function addCommand(component: string, options: AddOptions) {
-  console.log(chalk.blue.bold("\n📦 @drew/billing add\n"));
+  console.log(chalk.blue.bold("\n📦 drew-billing-cli add\n"));
 
   const validComponents = Object.keys(COMPONENTS);
 

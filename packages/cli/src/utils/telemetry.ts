@@ -158,14 +158,14 @@ export async function promptTelemetryConsent(): Promise<boolean> {
     return config.enabled;
   }
 
-  console.log(chalk.blue("\n📊 Help improve @drew/billing"));
+  console.log(chalk.blue("\n📊 Help improve drew-billing-cli"));
   console.log(chalk.gray("Anonymous telemetry helps us understand usage and fix issues faster."));
   console.log(chalk.gray("We collect: command types, timing, errors (no PII).\n"));
 
   // In a real CLI, you'd use inquirer here
   // For now, show the prompt message
-  console.log(chalk.gray("To enable: npx @drew/billing telemetry --enable"));
-  console.log(chalk.gray("To disable: npx @drew/billing telemetry --disable\n"));
+  console.log(chalk.gray("To enable: npx drew-billing-cli telemetry --enable"));
+  console.log(chalk.gray("To disable: npx drew-billing-cli telemetry --disable\n"));
 
   return false;
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Sandbox Event Command - Trigger simulated Stripe events
-// Usage: npx @drew/billing sandbox event <event-type>
+// Usage: npx drew-billing-cli sandbox event <event-type>
 
 import chalk from "chalk";
 import ora from "ora";
@@ -35,8 +35,8 @@ export function createSandboxEventCommand(): Command {
         });
 
         console.log(chalk.gray("Usage:"));
-        console.log(chalk.white("  npx @drew/billing sandbox event checkout.session.completed"));
-        console.log(chalk.white("  npx @drew/billing sandbox event customer.subscription.created --params '{\"customer_id\":\"cus_123\"}'"));
+        console.log(chalk.white("  npx drew-billing-cli sandbox event checkout.session.completed"));
+        console.log(chalk.white("  npx drew-billing-cli sandbox event customer.subscription.created --params '{\"customer_id\":\"cus_123\"}'"));
         return;
       }
 

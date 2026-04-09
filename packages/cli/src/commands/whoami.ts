@@ -4,7 +4,7 @@ import path from "path";
 import { execa } from "execa";
 
 export async function whoamiCommand() {
-  console.log(chalk.blue.bold("\n👤 @drew/billing whoami\n"));
+  console.log(chalk.blue.bold("\n👤 drew-billing-cli whoami\n"));
 
   // Read package.json for project info
   try {
@@ -89,7 +89,7 @@ export async function whoamiCommand() {
       });
     } else {
       console.log(chalk.gray("Components:"), chalk.yellow("None installed"));
-      console.log(chalk.gray("  Install with: npx @drew/billing add <component>"));
+      console.log(chalk.gray("  Install with: npx drew-billing-cli add <component>"));
     }
   } catch (error) {
     console.log(chalk.gray("Components:"), chalk.yellow("None installed"));

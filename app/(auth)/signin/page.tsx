@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -11,27 +12,31 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { data, error } = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: "/dashboard",
-    });
-
-    if (error) {
-      setError(error.message || "Failed to sign in");
-      setLoading(false);
-      return;
-    }
-
-    // Successful sign-in - redirect to dashboard
-    // Use window.location for a hard redirect to ensure middleware picks up the new session
-    window.location.href = "/dashboard";
+    await authClient.signIn.email(
+      {
+        email,
+        password,
+        callbackURL: callbackUrl,
+      },
+      {
+        onSuccess: () => {
+          // Hard redirect to ensure cookies are properly set and middleware validates session
+          window.location.href = callbackUrl;
+        },
+        onError: (ctx) => {
+          setError(ctx.error.message || "Failed to sign in");
+          setLoading(false);
+        },
+      }
+    );
   };
 
   return (

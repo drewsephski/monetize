@@ -29,8 +29,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/react/index.ts src/server/index.ts src/sandbox/index.ts --format esm --dts --clean",
-    "dev": "tsup src/index.ts src/react/index.ts src/server/index.ts src/sandbox/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts src/react/index.tsx src/server/index.ts src/sandbox/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts src/react/index.tsx src/server/index.ts src/sandbox/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "lint": "eslint src"

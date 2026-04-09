@@ -1,7 +1,3 @@
-import { config } from "dotenv";
-
-config({ path: ".env" });
-
 const requiredEnvVars = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
@@ -10,8 +6,6 @@ const requiredEnvVars = [
   "BETTER_AUTH_SECRET",
   "BETTER_AUTH_URL",
 ] as const;
-
-type RequiredEnvVar = (typeof requiredEnvVars)[number];
 
 interface EnvConfig {
   stripeSecretKey: string;
@@ -27,7 +21,11 @@ interface EnvConfig {
   billingSandboxMode: boolean;
 }
 
+let cachedEnv: EnvConfig | null = null;
+
 function validateEnv(): EnvConfig {
+  if (cachedEnv) return cachedEnv;
+
   const missing: string[] = [];
   const config: Partial<EnvConfig> = {};
 
@@ -71,7 +69,12 @@ function validateEnv(): EnvConfig {
   config.nextPublicStripePricePro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
   config.billingSandboxMode = process.env.BILLING_SANDBOX_MODE === "true";
 
-  return config as EnvConfig;
+  cachedEnv = config as EnvConfig;
+  return cachedEnv;
 }
 
-export const env = validateEnv();
+export const env = new Proxy({} as EnvConfig, {
+  get(_target, prop) {
+    return validateEnv()[prop as keyof EnvConfig];
+  },
+});

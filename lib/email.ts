@@ -124,7 +124,7 @@ export async function sendLicenseEmail({
     <h3>Quick Start</h3>
     <p>Install the SDK in your project:</p>
     <div class="code-block">
-      <code>npm install @drew/billing-sdk</code>
+      <code>npm install @drewsepsi/billing-sdk</code>
     </div>
     
     <p style="margin-top: 20px;">Set your license key:</p>
@@ -159,7 +159,7 @@ Features:
 ${features.map(f => `- ${f}`).join('\n')}
 
 Quick Start:
-1. Install: npm install @drew/billing-sdk
+1. Install: npm install @drewsepsi/billing-sdk
 2. Set your license key: export DREW_BILLING_LICENSE_KEY="${licenseKey}"
 
 Documentation: See your documentation at /docs

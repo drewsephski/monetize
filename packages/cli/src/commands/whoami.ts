@@ -62,8 +62,8 @@ export async function whoamiCommand() {
   try {
     const packageJson = await fs.readJson(path.join(process.cwd(), "package.json"));
     const sdkVersion =
-      packageJson.dependencies?.["@drew/billing-sdk"] ||
-      packageJson.devDependencies?.["@drew/billing-sdk"];
+      packageJson.dependencies?.["@drewsepsi/billing-sdk"] ||
+      packageJson.devDependencies?.["@drewsepsi/billing-sdk"];
 
     if (sdkVersion) {
       console.log(chalk.gray("  SDK:"), sdkVersion);

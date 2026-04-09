@@ -4,7 +4,7 @@ Handle subscription lifecycle with ease.
 
 ## Overview
 
-`@drew/billing` provides complete subscription management:
+`@drewsepsi/billing` provides complete subscription management:
 
 - Checkout sessions
 - Subscription updates
@@ -17,7 +17,7 @@ Handle subscription lifecycle with ease.
 ### Client-side
 
 ```tsx
-import { useCheckout } from "@drew/billing-sdk/react";
+import { useCheckout } from "@drewsepsi/billing-sdk/react";
 
 function PricingPage() {
   const { checkout, isLoading } = useCheckout();
@@ -36,7 +36,7 @@ function PricingPage() {
 ### Server-side
 
 ```tsx
-import { BillingSDK } from "@drew/billing-sdk";
+import { BillingSDK } from "@drewsepsi/billing-sdk";
 
 const billing = new BillingSDK({
   baseUrl: process.env.BILLING_API_URL,
@@ -59,7 +59,7 @@ redirect(url);
 ### React Hook
 
 ```tsx
-import { useSubscription } from "@drew/billing-sdk/react";
+import { useSubscription } from "@drewsepsi/billing-sdk/react";
 
 function MyComponent() {
   const { hasSubscription, plan, isTrial, trialEndsAt, isLoading } =
@@ -141,7 +141,7 @@ Automatically sync subscription changes:
 
 ```tsx
 // app/api/webhooks/stripe/route.ts
-import { handleStripeWebhook } from "@drew/billing";
+import { handleStripeWebhook } from "@drewsepsi/billing";
 
 export async function POST(req: Request) {
   const signature = req.headers.get("stripe-signature");
@@ -183,7 +183,7 @@ const isTrial = await billing.isTrialActive("user_123");
 Listen to subscription changes:
 
 ```tsx
-import { billingHooks } from "@drew/billing";
+import { billingHooks } from "@drewsepsi/billing";
 
 billingHooks.onSubscriptionCreated(({ userId, planId }) => {
   // Send welcome email

@@ -340,7 +340,7 @@ export default function PricingPage() {
               />
             </div>
             <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
-              @drew/billing
+              @drewsepsi/billing
             </span>
           </Link>
           <div className="flex items-center gap-1">
@@ -623,7 +623,7 @@ export default function PricingPage() {
                 <div>
                   <h4 className="text-sm font-medium text-[#1c1917]">Quick Start with SDK</h4>
                   <code className="mt-2 block rounded bg-[#1c1917] px-3 py-2 text-xs text-[#e7e5e4]">
-                    npm install @drew/billing-sdk<br />
+                    npm install @drewsepsi/billing-sdk<br />
                     <span className="text-[#78716c]"># Set your license key</span><br />
                     export DREW_BILLING_LICENSE_KEY=&quot;DREW-XXXX-XXXX-XXXX-XXXX&quot;
                   </code>

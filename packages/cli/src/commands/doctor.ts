@@ -17,7 +17,7 @@ interface CheckResult {
 }
 
 export async function doctorCommand() {
-  console.log(chalk.blue.bold("\n🔍 @drew/billing doctor\n"));
+  console.log(chalk.blue.bold("\n🔍 @drewsepsi/billing doctor\n"));
   console.log(chalk.gray("Running diagnostics...\n"));
 
   const checks: CheckResult[] = [];

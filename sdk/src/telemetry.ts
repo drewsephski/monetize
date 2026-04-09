@@ -1,5 +1,5 @@
 /**
- * Telemetry Client for @drew/billing SDK
+ * Telemetry Client for @drewsepsi/billing SDK
  * Anonymous, opt-in usage and error reporting
  */
 

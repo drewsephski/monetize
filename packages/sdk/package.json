@@ -1,7 +1,7 @@
 {
-  "name": "@drew/billing-sdk",
-  "version": "1.0.0",
-  "description": "TypeScript SDK for @drew/billing - Add subscriptions and usage billing to your app",
+  "name": "@drewsepsi/billing-sdk",
+  "version": "1.0.1",
+  "description": "TypeScript SDK for @drewsepsi/billing - Add subscriptions and usage billing to your app",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

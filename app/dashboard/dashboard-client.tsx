@@ -134,7 +134,7 @@ export default function DashboardClient() {
               />
             </div>
             <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
-              @drew/billing
+              @drewsepsi/billing
             </span>
           </Link>
 

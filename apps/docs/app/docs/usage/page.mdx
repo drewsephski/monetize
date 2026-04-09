@@ -29,7 +29,7 @@ stripe prices create \
 ### 2. Track usage
 
 ```tsx
-import { useTrackUsage } from "@drew/billing-sdk/react";
+import { useTrackUsage } from "@drewsepsi/billing-sdk/react";
 
 function ApiRoute() {
   const { track } = useTrackUsage();
@@ -71,7 +71,7 @@ function Dashboard() {
 
 ```tsx
 // middleware.ts
-import { trackUsage } from "@drew/billing-sdk/server";
+import { trackUsage } from "@drewsepsi/billing-sdk/server";
 
 export async function middleware(req: NextRequest) {
   // Track every API request

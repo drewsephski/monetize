@@ -1,4 +1,4 @@
-# @drew/billing
+# @drewsepsi/billing
 
 **Add subscriptions to your Next.js app in 10 minutes.**
 
@@ -15,7 +15,7 @@ Complete billing system with CLI setup, pre-built components, and automatic webh
 
 ```bash
 # 1. Run the CLI
-npx @drew/billing-cli init
+npx @drewsepsi/billing-cli init
 
 # 2. Follow the prompts - enter your Stripe keys
 # The CLI creates products, sets up webhooks, and configures everything
@@ -94,7 +94,7 @@ Own your billing infrastructure. One-time license, unlimited usage:
 ### One-Line SDK
 
 ```typescript
-import { BillingSDK } from "@drew/billing-sdk";
+import { BillingSDK } from "@drewsepsi/billing-sdk";
 
 const billing = new BillingSDK({
   baseUrl: process.env.NEXT_PUBLIC_API_URL
@@ -140,7 +140,7 @@ npx drew-billing-cli init --template saas    # or api, ai-credits
 
 ## Why Not Just Use Stripe?
 
-| Feature | Stripe Only | @drew/billing |
+| Feature | Stripe Only | @drewsepsi/billing |
 |---------|-------------|---------------|
 | Database schema | Build yourself | ✓ Included |
 | Webhook handling | Build yourself | ✓ Automatic |
@@ -189,7 +189,7 @@ When you purchase a Drew Billing SDK license, you get:
 export DREW_BILLING_LICENSE_KEY="your-license-key"
 
 # 2. Install the SDK
-npm install @drew/billing-sdk
+npm install @drewsepsi/billing-sdk
 
 # 3. The SDK validates your license automatically
 # See SDK documentation for details

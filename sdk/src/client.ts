@@ -165,8 +165,8 @@ export class BillingClient {
 
   private buildErrorMessage(baseMessage: string, status: number, endpoint: string): string {
     const fixes: Record<number, string> = {
-      400: "Check your request parameters. Run 'npx @drew/billing doctor' to verify setup.",
-      401: "Authentication failed. Check STRIPE_SECRET_KEY in .env.local. Run: npx @drew/billing doctor",
+      400: "Check your request parameters. Run 'npx @drewsepsi/billing doctor' to verify setup.",
+      401: "Authentication failed. Check STRIPE_SECRET_KEY in .env.local. Run: npx @drewsepsi/billing doctor",
       404: `API endpoint not found. Is your dev server running? Try: npm run dev`,
       429: "Rate limit exceeded. Wait a moment or upgrade your plan.",
       500: "Server error. Try sandbox mode: BILLING_SANDBOX_MODE=true npm run dev",
@@ -180,7 +180,7 @@ export class BillingClient {
 
     // Check for specific error patterns
     if (baseMessage.includes("STRIPE_SECRET_KEY")) {
-      return `${baseMessage}\n\n→ Fix: Add STRIPE_SECRET_KEY to .env.local, then run: npx @drew/billing doctor`;
+      return `${baseMessage}\n\n→ Fix: Add STRIPE_SECRET_KEY to .env.local, then run: npx @drewsepsi/billing doctor`;
     }
 
     if (baseMessage.includes("webhook")) {
@@ -188,7 +188,7 @@ export class BillingClient {
     }
 
     if (baseMessage.includes("subscription")) {
-      return `${baseMessage}\n\n→ Fix: Check subscription status at http://localhost:3000/dashboard or run: npx @drew/billing doctor`;
+      return `${baseMessage}\n\n→ Fix: Check subscription status at http://localhost:3000/dashboard or run: npx @drewsepsi/billing doctor`;
     }
 
     return baseMessage;

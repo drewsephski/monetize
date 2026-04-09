@@ -20,7 +20,7 @@ function hasSessionCookie(request: NextRequest): boolean {
   return false;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Protect dashboard routes
@@ -42,6 +42,11 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: ["/dashboard/:path*", "/signin", "/signup"],
+export const proxyConfig = {
+  matcher: [
+    // Exclude monitoring route, Next.js internals, and static files
+    '/((?!monitoring|_next/static|_next/image|favicon.ico).*)/:path*',
+    '/signin',
+    '/signup',
+  ],
 };

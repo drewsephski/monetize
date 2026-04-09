@@ -12,6 +12,10 @@ const stripe = new Stripe(env.stripeSecretKey, {
 });
 
 export const auth = betterAuth({
+  trustedOrigins: [
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    "https://monetize-two.vercel.app",
+  ],
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

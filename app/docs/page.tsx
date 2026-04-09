@@ -132,7 +132,7 @@ export default function DocsPage() {
                     Integrate billing directly into your application code.
                   </p>
                   <code className="block bg-muted p-3 rounded text-sm font-mono">
-                    npm install @drew/billing-sdk
+                    npm install @drewsepsi/billing-sdk
                   </code>
                 </div>
 
@@ -149,7 +149,7 @@ export default function DocsPage() {
                     Manage billing from the command line.
                   </p>
                   <code className="block bg-muted p-3 rounded text-sm font-mono">
-                    npx @drew/billing-cli init
+                    npx @drewsepsi/billing-cli init
                   </code>
                 </div>
               </div>
@@ -163,16 +163,16 @@ export default function DocsPage() {
               <div className="bg-muted rounded-lg p-4 mb-6">
                 <pre className="text-sm font-mono overflow-x-auto">
                   <code>{`# npm
-npm install @drew/billing-sdk
+npm install @drewsepsi/billing-sdk
 
 # yarn
-yarn add @drew/billing-sdk
+yarn add @drewsepsi/billing-sdk
 
 # pnpm
-pnpm add @drew/billing-sdk
+pnpm add @drewsepsi/billing-sdk
 
 # bun
-bun add @drew/billing-sdk`}</code>
+bun add @drewsepsi/billing-sdk`}</code>
                 </pre>
               </div>
 
@@ -180,10 +180,10 @@ bun add @drew/billing-sdk`}</code>
               <div className="bg-muted rounded-lg p-4 mb-6">
                 <pre className="text-sm font-mono overflow-x-auto">
                   <code>{`# Run without installing
-npx @drew/billing-cli init
+npx @drewsepsi/billing-cli init
 
 # Or install globally
-npm install -g @drew/billing-cli
+npm install -g @drewsepsi/billing-cli
 drew-billing init`}</code>
                 </pre>
               </div>
@@ -200,7 +200,7 @@ drew-billing init`}</code>
               <h3 className="text-lg font-semibold mb-3">Initialize the SDK</h3>
               <div className="bg-muted rounded-lg p-4 mb-6">
                 <pre className="text-sm font-mono overflow-x-auto">
-                  <code>{`import { DrewBillingSDK } from '@drew/billing-sdk';
+                  <code>{`import { DrewBillingSDK } from '@drewsepsi/billing-sdk';
 
 const sdk = new DrewBillingSDK({
   licenseKey: process.env.DREW_BILLING_LICENSE_KEY,

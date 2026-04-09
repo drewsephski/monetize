@@ -1,7 +1,7 @@
 {
-  "name": "@drew/billing-cli",
+  "name": "@drewsepsi/billing-cli",
   "version": "1.2.9",
-  "description": "CLI for drew-billing - Add subscriptions to your app in 10 minutes",
+  "description": "CLI for @drewsepsi/billing - Add subscriptions to your app in 10 minutes",
   "type": "module",
   "bin": {
     "drew-billing": "dist/index.js",

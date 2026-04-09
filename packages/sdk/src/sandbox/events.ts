@@ -1,5 +1,5 @@
 // Sandbox Event Simulator - Trigger fake Stripe events for testing
-// Usage: npx @drew/billing sandbox event <event-type>
+// Usage: npx @drewsepsi/billing sandbox event <event-type>
 
 import { sandboxStorage } from "./storage.js";
 import type { SandboxSubscription, SandboxCheckoutSession } from "./storage.js";

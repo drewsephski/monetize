@@ -12,12 +12,13 @@ import {
   updateWebhookStatus 
 } from "@/lib/webhook-security";
 import { captureException } from "@/lib/sentry";
+import { env } from "@/lib/env";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(env.stripeSecretKey, {
   apiVersion: "2026-03-25.dahlia",
 });
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const webhookSecret = env.stripeLicenseWebhookSecret;
 
 // Generate a secure license key
 function generateLicenseKey(): string {

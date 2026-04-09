@@ -1,11 +1,15 @@
-import { initSentry } from '@/lib/sentry';
+import * as Sentry from '@sentry/nextjs';
 
 export async function register() {
-  // Initialize Sentry for error tracking
-  initSentry();
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./sentry.server.config');
+  }
+
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    await import('./sentry.edge.config');
+  }
 }
 
-export const onRequestError = (error: Error, request: Request, context: { route: string }) => {
-  // This will be captured by Sentry automatically
-  console.error(`Request error on ${context.route}:`, error);
-};
+// Automatically captures all unhandled server-side request errors
+// Requires @sentry/nextjs >= 8.28.0
+export const onRequestError = Sentry.captureRequestError;

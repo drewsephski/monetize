@@ -76,7 +76,7 @@ export default function Page() {
               />
             </div>
             <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
-              @drew/billing
+              @drewsepsi/billing
             </span>
           </Link>
           <div className="flex items-center gap-1">
@@ -445,7 +445,7 @@ export default function Page() {
                     Stripe Only
                   </th>
                   <th className="px-6 py-4 text-center font-medium text-[#b8860b]">
-                    @drew/billing
+                    @drewsepsi/billing
                   </th>
                 </tr>
               </thead>
@@ -469,7 +469,7 @@ export default function Page() {
           </div>
 
           <p className="mt-6 text-center text-sm text-[#78716c]">
-            @drew/billing uses Stripe under the hood. We just handle the hard parts so you don&apos;t have to.
+            @drewsepsi/billing uses Stripe under the hood. We just handle the hard parts so you don&apos;t have to.
           </p>
         </div>
       </section>
@@ -575,14 +575,14 @@ export default function Page() {
                       <Terminal className="h-3 w-3 text-[#78716c]" />
                       <span className="font-mono text-xs text-[#78716c]">npm</span>
                     </div>
-                    <span className="font-mono text-xs text-[#a8a29e]">install @drew/billing</span>
+                    <span className="font-mono text-xs text-[#a8a29e]">install @drewsepsi/billing</span>
                   </div>
                   <button
-                    onClick={() => copyToClipboard("npm install @drew/billing")}
+                    onClick={() => copyToClipboard("npm install @drewsepsi/billing")}
                     className="group/copy relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-[#1c1917]/60 text-[#a8a29e] ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-[#292524]/80 hover:text-[#f5f5f4] hover:ring-[#b8860b]/30 hover:shadow-[0_0_12px_rgba(184,134,11,0.15)] active:scale-95"
                   >
                     <span className="absolute inset-0 bg-gradient-to-br from-[#b8860b]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/copy:opacity-100" />
-                    {copiedText === "npm install @drew/billing" ? (
+                    {copiedText === "npm install @drewsepsi/billing" ? (
                       <Check className="relative h-4 w-4 text-[#22c55e] animate-in zoom-in-50 duration-200" />
                     ) : (
                       <Copy className="relative h-4 w-4 transition-transform duration-300 group-hover/copy:scale-105" />
@@ -600,7 +600,7 @@ export default function Page() {
                     <span className="token-operator">{"}"}</span>{" "}
                     <span className="token-keyword">from</span>{" "}
                     <span className="token-string">
-                      &quot;@drew/billing&quot;
+                      &quot;@drewsepsi/billing&quot;
                     </span>
                     <span className="token-operator">;</span>
                   </div>
@@ -916,7 +916,7 @@ export default function Page() {
                 className="h-10 w-10 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
               />
               <span className="font-[family-name:var(--font-display)] font-medium text-[#1c1917]">
-                @drew/billing
+                @drewsepsi/billing
               </span>
             </div>
 

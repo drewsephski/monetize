@@ -10,7 +10,7 @@ interface CheckResult {
 }
 
 export async function verifyCommand() {
-  console.log(chalk.blue.bold("\n🔍 @drew/billing verify\n"));
+  console.log(chalk.blue.bold("\n🔍 @drewsepsi/billing verify\n"));
   console.log(chalk.gray("Checking your billing setup...\n"));
 
   const results: CheckResult[] = [];

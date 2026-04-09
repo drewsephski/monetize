@@ -1,13 +1,13 @@
 # Get Started in 5 Minutes
 
-Add subscriptions to your Next.js app in 5 minutes with `@drew/billing`.
+Add subscriptions to your Next.js app in 5 minutes with `@drewsepsi/billing`.
 
 ## Quick Start
 
 ### 1. Initialize your project
 
 ```bash
-npx @drew/billing init
+npx @drewsepsi/billing init
 ```
 
 This will:
@@ -19,7 +19,7 @@ This will:
 ### 2. Add the SDK
 
 ```bash
-npm install @drew/billing-sdk
+npm install @drewsepsi/billing-sdk
 ```
 
 ### 3. Use the components
@@ -65,7 +65,7 @@ export default function PricingPage() {
 ### Check entitlements
 
 ```tsx
-import { useEntitlements } from "@drew/billing-sdk/react";
+import { useEntitlements } from "@drewsepsi/billing-sdk/react";
 
 function MyComponent() {
   const { entitlements, isLoading } = useEntitlements();
@@ -87,7 +87,7 @@ function MyComponent() {
 ### Track usage
 
 ```tsx
-import { useTrackUsage } from "@drew/billing-sdk/react";
+import { useTrackUsage } from "@drewsepsi/billing-sdk/react";
 
 function ApiEndpoint() {
   const { track } = useTrackUsage();
@@ -104,7 +104,7 @@ function ApiEndpoint() {
 ### Server-side checks
 
 ```tsx
-import { requireSubscription } from "@drew/billing-sdk/server";
+import { requireSubscription } from "@drewsepsi/billing-sdk/server";
 
 export async function GET(req: Request) {
   const userId = getUserId(req);

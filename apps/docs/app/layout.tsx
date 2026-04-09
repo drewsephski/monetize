@@ -3,7 +3,7 @@ import "./globals.css";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "@drew/billing - Documentation",
+  title: "@drewsepsi/billing - Documentation",
   description: "Add subscriptions to your app in 10 minutes",
 };
 
@@ -19,7 +19,7 @@ export default function RootLayout({
           <header className="border-b">
             <div className="container mx-auto px-4 h-14 flex items-center justify-between">
               <Link href="/" className="font-bold text-lg">
-                @drew/billing
+                @drewsepsi/billing
               </Link>
               <nav className="flex gap-4 text-sm">
                 <Link href="/docs" className="text-muted-foreground hover:text-foreground">

@@ -5,6 +5,7 @@ config({ path: ".env" });
 const requiredEnvVars = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
+  "STRIPE_LICENSE_WEBHOOK_SECRET",
   "DATABASE_URL",
   "BETTER_AUTH_SECRET",
   "BETTER_AUTH_URL",
@@ -15,6 +16,7 @@ type RequiredEnvVar = (typeof requiredEnvVars)[number];
 interface EnvConfig {
   stripeSecretKey: string;
   stripeWebhookSecret: string;
+  stripeLicenseWebhookSecret: string;
   stripePublishableKey?: string;
   databaseUrl: string;
   cronSecret?: string;
@@ -39,6 +41,9 @@ function validateEnv(): EnvConfig {
           break;
         case "STRIPE_WEBHOOK_SECRET":
           config.stripeWebhookSecret = value;
+          break;
+        case "STRIPE_LICENSE_WEBHOOK_SECRET":
+          config.stripeLicenseWebhookSecret = value;
           break;
         case "DATABASE_URL":
           config.databaseUrl = value;

@@ -1,4 +1,4 @@
-// Server-side utilities for @drew/billing-sdk
+// Server-side utilities for @drewsepsi/billing-sdk
 // These should only be used in server contexts (API routes, Server Components, etc.)
 
 import { BillingSDK } from "../index";

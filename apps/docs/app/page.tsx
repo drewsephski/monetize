@@ -35,7 +35,7 @@ export default function Home() {
       <section className="mb-20">
         <div className="bg-slate-900 rounded-lg p-6 overflow-x-auto">
           <pre className="text-sm text-slate-100">
-            <code>{`npx @drew/billing init
+            <code>{`npx @drewsepsi/billing init
 
 // Then in your app:
 import { PricingTable } from "@/components/billing";

@@ -9,7 +9,7 @@ interface SandboxOptions {
 }
 
 export async function sandboxCommand(options: SandboxOptions) {
-  console.log(chalk.blue.bold("\n🏖️  @drew/billing sandbox\n"));
+  console.log(chalk.blue.bold("\n🏖️  @drewsepsi/billing sandbox\n"));
 
   const envPath = path.join(process.cwd(), ".env.local");
 

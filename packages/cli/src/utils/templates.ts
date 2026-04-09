@@ -47,6 +47,35 @@ const TEXT_EXTENSIONS = new Set([
   ".txt",
 ]);
 
+const REQUIRED_TEMPLATE_FILES: Record<TemplateKey, string[]> = {
+  saas: [
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/pricing/page.tsx",
+    "app/dashboard/page.tsx",
+    "components/example-kit.tsx",
+    "lib/site.ts",
+  ],
+  api: [
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/pricing/page.tsx",
+    "app/dashboard/page.tsx",
+    "app/api-keys/page.tsx",
+    "components/example-kit.tsx",
+    "lib/site.ts",
+  ],
+  usage: [
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/pricing/page.tsx",
+    "app/dashboard/page.tsx",
+    "app/usage/page.tsx",
+    "components/example-kit.tsx",
+    "lib/site.ts",
+  ],
+};
+
 export async function installTemplates(
   templateType: string,
   products: StripeProduct[],
@@ -59,8 +88,20 @@ export async function installTemplates(
 
   console.log(chalk.blue(`\n📄 Installing ${tokens.__APP_NAME__} template assets...`));
 
-  await copyTemplateDirectory(path.join(templateRoot, "common"), cwd, tokens);
-  await copyTemplateDirectory(path.join(templateRoot, template), cwd, tokens);
+  const commonFiles = await copyTemplateDirectory(path.join(templateRoot, "common"), cwd, tokens);
+  const templateFiles = await copyTemplateDirectory(path.join(templateRoot, template), cwd, tokens);
+  const totalFiles = commonFiles + templateFiles;
+
+  if (totalFiles === 0) {
+    throw new Error(`Template installation copied 0 files from ${templateRoot}`);
+  }
+
+  const missingRequiredFiles = await getMissingRequiredFiles(template, cwd);
+  if (missingRequiredFiles.length > 0) {
+    throw new Error(
+      `Template installation incomplete. Missing required files: ${missingRequiredFiles.join(", ")}`
+    );
+  }
 
   console.log(chalk.green(`✅ ${tokens.__APP_NAME__} template installed\n`));
 }
@@ -84,10 +125,26 @@ export function getTemplateLabel(templateType: string) {
   return TEMPLATE_INFO[template].appName;
 }
 
-function resolveTemplateRoot() {
-  const currentFile = fileURLToPath(import.meta.url);
-  const packageRoot = path.resolve(path.dirname(currentFile), "..", "..");
-  return path.join(packageRoot, "templates");
+export function resolveTemplateRoot(currentFilePath = fileURLToPath(import.meta.url)) {
+  const currentDir = path.dirname(currentFilePath);
+  const candidateRoots = [
+    path.resolve(currentDir, ".."),
+    path.resolve(currentDir, "..", ".."),
+  ];
+
+  for (const candidateRoot of candidateRoots) {
+    const templateRoot = path.join(candidateRoot, "templates");
+    const commonTemplateDir = path.join(templateRoot, "common");
+    if (fs.existsSync(commonTemplateDir)) {
+      return templateRoot;
+    }
+  }
+
+  throw new Error(
+    `Could not locate CLI templates relative to ${currentFilePath}. Checked: ${candidateRoots
+      .map((root) => path.join(root, "templates"))
+      .join(", ")}`
+  );
 }
 
 function getTemplateTokens(template: TemplateKey, products: StripeProduct[]) {
@@ -113,7 +170,7 @@ async function copyTemplateDirectory(
   tokens: Record<string, string>
 ) {
   if (!(await fs.pathExists(fromDir))) {
-    return;
+    throw new Error(`Template source directory not found: ${fromDir}`);
   }
 
   const files = await globby(["**/*"], {
@@ -121,6 +178,10 @@ async function copyTemplateDirectory(
     dot: true,
     onlyFiles: true,
   });
+
+  if (files.length === 0) {
+    throw new Error(`Template source directory is empty: ${fromDir}`);
+  }
 
   for (const relativeFile of files) {
     const sourcePath = path.join(fromDir, relativeFile);
@@ -136,6 +197,8 @@ async function copyTemplateDirectory(
 
     await fs.copyFile(sourcePath, destinationPath);
   }
+
+  return files.length;
 }
 
 function isTextFile(filePath: string) {
@@ -146,4 +209,15 @@ function replaceTokens(content: string, tokens: Record<string, string>) {
   return Object.entries(tokens).reduce((value, [token, replacement]) => {
     return value.split(token).join(replacement);
   }, content);
+}
+
+async function getMissingRequiredFiles(template: TemplateKey, targetDir: string) {
+  const checks = await Promise.all(
+    REQUIRED_TEMPLATE_FILES[template].map(async (relativePath) => ({
+      relativePath,
+      exists: await fs.pathExists(path.join(targetDir, relativePath)),
+    }))
+  );
+
+  return checks.filter((check) => !check.exists).map((check) => check.relativePath);
 }

@@ -23,5 +23,4 @@ After `init`, a developer should be able to:
 
 ## Docs
 
-- [Central docs](https://billing.drew.dev/docs)
 - [Repository](https://github.com/drewsephski/monetize)

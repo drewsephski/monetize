@@ -1,9 +1,32 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { SignInForm } from "./signin-form";
+import { auth } from "@/lib/auth";
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  // Server-side auth check - redirect immediately if already logged in
+  const headersList = await headers();
+  const session = await auth.api.getSession({
+    headers: headersList,
+  });
+
+  if (session?.user?.id) {
+    const params = await searchParams;
+    const callbackUrl = params.callbackUrl;
+    // Redirect to callbackUrl if valid, otherwise dashboard
+    if (callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
+      redirect(callbackUrl);
+    }
+    redirect("/dashboard");
+  }
+
   return (
     <Suspense fallback={<SignInSkeleton />}>
       <SignInContent />

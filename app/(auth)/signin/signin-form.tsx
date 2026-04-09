@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 export function SignInForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,17 +20,28 @@ export function SignInForm() {
     setLoading(true);
     setError(null);
 
-    const result = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: callbackUrl,
-    });
-
-    if (result.error) {
-      setError(result.error.message || "Failed to sign in");
-      setLoading(false);
-    }
-    // onSuccess: redirect happens automatically via callbackURL
+    await authClient.signIn.email(
+      {
+        email,
+        password,
+        callbackURL: callbackUrl,
+      },
+      {
+        onRequest: () => {
+          setLoading(true);
+        },
+        onSuccess: () => {
+          // Use Next.js router for client-side navigation
+          // This ensures proper state synchronization
+          router.push(callbackUrl);
+          router.refresh(); // Force server components to re-render with new auth state
+        },
+        onError: (ctx) => {
+          setError(ctx.error.message || "Failed to sign in");
+          setLoading(false);
+        },
+      }
+    );
   };
 
   return (

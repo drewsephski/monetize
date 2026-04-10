@@ -98,19 +98,19 @@ export function TrialBanner({
             onClick={handleUpgrade}
             loading={isUpgrading}
             className={cn(
-              "h-9 px-4 text-sm font-medium transition-all duration-200 group",
+              "h-10 sm:h-9 px-4 text-sm font-medium transition-all duration-200 group touch-target",
               isUrgent
                 ? "bg-[#f59e0b] text-white hover:bg-[#d97706]"
                 : "bg-[#1c1917] text-white hover:bg-[#292524]"
             )}
           >
             <span>Upgrade Now</span>
-            <ArrowRight className="ml-1.5 h-3.5 w-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all hidden sm:inline" />
           </Button>
           {onDismiss && (
             <button
               onClick={handleDismiss}
-              className="p-2 rounded-lg text-[#a8a29e] hover:text-[#57534e] hover:bg-[#e7e5e4]/50 transition-all"
+              className="p-2 sm:p-2 rounded-lg text-[#a8a29e] hover:text-[#57534e] hover:bg-[#e7e5e4]/50 transition-all touch-target min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <X className="h-4 w-4" />
             </button>

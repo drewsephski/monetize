@@ -41,7 +41,7 @@ export function BillingPortalButton({
       onClick={handleClick}
       disabled={isLoading}
       className={cn(
-        "h-11 px-4 text-sm font-medium transition-all duration-200 group",
+        "h-11 px-4 text-sm font-medium transition-all duration-200 group touch-target",
         variant === "outline" && [
           "border-[#e7e5e4] bg-white text-[#1c1917]",
           "hover:border-[#b8860b] hover:bg-[#fafaf9]"
@@ -56,7 +56,7 @@ export function BillingPortalButton({
         <>
           <CreditCard className="mr-2 h-4 w-4 text-[#a8a29e] group-hover:text-[#b8860b] transition-colors" />
           <span>{children || "Manage Billing"}</span>
-          <ArrowUpRight className="ml-2 h-3.5 w-3.5 text-[#a8a29e] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+          <ArrowUpRight className="ml-2 h-3.5 w-3.5 text-[#a8a29e] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all hidden sm:inline" />
         </>
       )}
     </Button>

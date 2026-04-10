@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { MobileNavigation } from "@/components/mobile-navigation";
 import {
   Check,
   Loader2,
@@ -351,21 +352,24 @@ export default function PricingPage() {
     <main className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="glass fixed left-0 right-0 top-0 z-50">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-3">
-            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="group flex items-center gap-2 sm:gap-3">
+            <div className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="/payment-credit.svg" 
-                alt="Logo" 
-                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              <img
+                src="/payment-credit.svg"
+                alt="Logo"
+                className="ml-0.5 sm:ml-1 h-6 w-6 sm:h-7 sm:w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
               />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
-              @drewsepsi/billing
+            <span className="font-[family-name:var(--font-display)] text-base sm:text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
+              <span className="hidden sm:inline">@drewsepsi/billing</span>
+              <span className="sm:hidden">Billing</span>
             </span>
           </Link>
-          <div className="flex items-center gap-1">
+
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center gap-1">
             <Link
               href="/"
               className="rounded-lg px-4 py-2 text-sm font-medium text-[#78716c] transition-all duration-200 hover:bg-[#f5f5f4] hover:text-[#1c1917]"
@@ -390,23 +394,36 @@ export default function PricingPage() {
               </Link>
             )}
           </div>
+
+          {/* Mobile Navigation */}
+          <MobileNavigation
+            links={[
+              { href: "/", label: "Home" },
+              { href: "/try", label: "Live Demo" },
+              { href: "/demo", label: "Playground" },
+            ]}
+            cta={{
+              href: session ? "/dashboard" : "/signin",
+              label: session ? "Dashboard" : "Sign in",
+            }}
+          />
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16">
+      <section className="relative overflow-hidden px-4 sm:px-6 pt-28 sm:pt-32 pb-12 sm:pb-16">
         <div className="absolute inset-0 bg-gradient-to-b from-[#b8860b]/5 to-transparent" />
         <div className="relative mx-auto max-w-3xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#b8860b]/10 bg-[#b8860b]/8 px-4 py-1.5">
+          <div className="mb-4 sm:mb-6 inline-flex items-center gap-2 rounded-full border border-[#b8860b]/10 bg-[#b8860b]/8 px-3 sm:px-4 py-1.5">
             <Zap className="h-3.5 w-3.5 text-[#b8860b]" />
-            <span className="text-sm font-medium text-[#b8860b]">
+            <span className="text-xs sm:text-sm font-medium text-[#b8860b]">
               Simple, transparent pricing
             </span>
           </div>
-          <h1 className="mb-4 font-[family-name:var(--font-display)] text-4xl text-[#1c1917] lg:text-5xl">
+          <h1 className="mb-3 sm:mb-4 font-[family-name:var(--font-display)] text-3xl sm:text-4xl text-[#1c1917] lg:text-5xl">
             Choose your product
           </h1>
-          <p className="mx-auto max-w-xl text-lg text-[#78716c]">
+          <p className="mx-auto max-w-xl text-base sm:text-lg text-[#78716c] px-2 sm:px-0">
             Two ways to add billing to your business. Pick what works for you.
           </p>
         </div>
@@ -414,39 +431,41 @@ export default function PricingPage() {
 
       {/* Error Banner */}
       {error && (
-        <div className="mx-auto max-w-6xl px-6 pb-8">
-          <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-4 text-red-600">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 pb-6 sm:pb-8">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 sm:px-6 py-3 sm:py-4 text-sm text-red-600">
             {error}
           </div>
         </div>
       )}
 
       {/* Product Selector Tabs */}
-      <section className="mx-auto max-w-4xl px-6 pb-12">
-        <div className="flex flex-col items-center gap-6">
+      <section className="mx-auto max-w-4xl px-4 sm:px-6 pb-8 sm:pb-12">
+        <div className="flex flex-col items-center gap-4 sm:gap-6">
           {/* Tab Buttons */}
-          <div className="flex rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-1.5">
+          <div className="flex flex-col sm:flex-row w-full sm:w-auto rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-1.5">
             <button
               onClick={() => setActiveTab("hosted")}
-              className={`flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center justify-center gap-2 rounded-lg px-4 sm:px-6 py-3 text-sm font-medium transition-all duration-200 touch-target ${
                 activeTab === "hosted"
                   ? "bg-white text-[#1c1917] shadow-sm"
                   : "text-[#78716c] hover:text-[#1c1917]"
               }`}
             >
               <Cloud className="h-4 w-4" />
-              Drew Billing Cloud
+              <span className="hidden sm:inline">Drew Billing Cloud</span>
+              <span className="sm:hidden">Cloud</span>
             </button>
             <button
               onClick={() => setActiveTab("sdk")}
-              className={`flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center justify-center gap-2 rounded-lg px-4 sm:px-6 py-3 text-sm font-medium transition-all duration-200 touch-target ${
                 activeTab === "sdk"
                   ? "bg-white text-[#1c1917] shadow-sm"
                   : "text-[#78716c] hover:text-[#1c1917]"
               }`}
             >
               <Download className="h-4 w-4" />
-              Drew Billing SDK
+              <span className="hidden sm:inline">Drew Billing SDK</span>
+              <span className="sm:hidden">SDK</span>
             </button>
           </div>
 
@@ -478,9 +497,9 @@ export default function PricingPage() {
       </section>
 
       {/* Pricing Grid */}
-      <section className="mx-auto max-w-6xl px-6 pb-24">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24">
         {activeTab === "hosted" ? (
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
             {HOSTED_PLANS.map((plan) => (
               <div
                 key={plan.id}
@@ -543,7 +562,7 @@ export default function PricingPage() {
                 <button
                   onClick={() => handleSubscribe(plan)}
                   disabled={loading === plan.id || sessionPending || isCurrentPlan(plan.id)}
-                  className={`group relative w-full overflow-hidden rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  className={`group relative w-full overflow-hidden rounded-lg px-4 py-3 sm:py-2.5 text-sm font-medium transition-all duration-300 touch-target disabled:cursor-not-allowed disabled:opacity-50 ${
                     isCurrentPlan(plan.id)
                       ? "border border-[#e7e5e4] bg-[#f5f5f4] text-[#78716c]"
                       : plan.popular
@@ -574,7 +593,7 @@ export default function PricingPage() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-4">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {SDK_PLANS.map((sdkPlan) => {
               const Icon = sdkPlan.icon;
               const sdkCurrentPlan = isCurrentPlan(sdkPlan.id);
@@ -627,7 +646,7 @@ export default function PricingPage() {
                   <button
                     onClick={() => handleSDKLicensePurchase(sdkPlan.id)}
                     disabled={loading === sdkPlan.id || sdkCurrentPlan || sdkPlan.id === "sdk-free"}
-                    className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`w-full rounded-lg px-3 py-3 sm:py-2 text-sm font-medium transition-all duration-200 touch-target disabled:cursor-not-allowed disabled:opacity-60 ${
                       sdkCurrentPlan
                         ? "border border-[#2d5a3d]/30 bg-[#2d5a3d]/10 text-[#2d5a3d]"
                         : sdkPlan.popular
@@ -654,15 +673,15 @@ export default function PricingPage() {
             })}
 
             {/* Quick Start Box */}
-            <div className="col-span-full mt-6 rounded-lg border border-[#e7e5e4] bg-white p-4">
-              <div className="flex items-start gap-3">
-                <Terminal className="mt-0.5 h-5 w-5 text-[#635bff]" />
-                <div>
-                  <h4 className="text-sm font-medium text-[#1c1917]">Quick Start with SDK</h4>
-                  <code className="mt-2 block rounded bg-[#1c1917] px-3 py-2 text-xs text-[#e7e5e4]">
-                    npm install @drewsepsi/billing-sdk<br />
+            <div className="col-span-full mt-4 sm:mt-6 rounded-lg border border-[#e7e5e4] bg-white p-3 sm:p-4">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <Terminal className="mt-0.5 h-4 w-4 sm:h-5 sm:w-5 text-[#635bff] shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs sm:text-sm font-medium text-[#1c1917]">Quick Start with SDK</h4>
+                  <code className="mt-2 block rounded bg-[#1c1917] px-2 sm:px-3 py-2 text-[10px] sm:text-xs text-[#e7e5e4] overflow-x-auto">
+                    <span className="whitespace-nowrap">npm install @drewsepsi/billing-sdk</span><br />
                     <span className="text-[#78716c]"># Set your license key</span><br />
-                    export DREW_BILLING_LICENSE_KEY=&quot;DREW-XXXX-XXXX-XXXX-XXXX&quot;
+                    <span className="whitespace-nowrap">export DREW_BILLING_LICENSE_KEY=&quot;DREW-XXXX-XXXX-XXXX-XXXX&quot;</span>
                   </code>
                 </div>
               </div>
@@ -671,17 +690,17 @@ export default function PricingPage() {
         )}
 
         {/* Trust Section */}
-        <div className="mt-16 rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-8">
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="flex items-center justify-center md:justify-center">
+        <div className="mt-8 sm:mt-12 lg:mt-16 rounded-xl sm:rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-4 sm:p-6 lg:p-8">
+          <div className="grid gap-6 sm:gap-8 lg:grid-cols-2">
+            <div className="flex items-center justify-center order-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="/online-payment.svg" 
-                alt="Secure online payment" 
-                className="h-32 w-auto object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+              <img
+                src="/online-payment.svg"
+                alt="Secure online payment"
+                className="h-20 sm:h-24 lg:h-32 w-auto object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
               />
             </div>
-            <div className="grid gap-6">
+            <div className="grid gap-3 sm:gap-4 lg:gap-6 order-2">
               {[
                 {
                   icon: Shield,
@@ -699,13 +718,13 @@ export default function PricingPage() {
                   desc: "No long-term contracts",
                 },
               ].map((item, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
-                    <item.icon className="h-5 w-5 text-[#b8860b]" />
+                <div key={i} className="flex items-start gap-3 sm:gap-4">
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+                    <item.icon className="h-4 w-4 sm:h-5 sm:w-5 text-[#b8860b]" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-[#1c1917]">{item.title}</h4>
-                    <p className="text-sm text-[#78716c]">{item.desc}</p>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-[#1c1917] text-sm sm:text-base">{item.title}</h4>
+                    <p className="text-xs sm:text-sm text-[#78716c]">{item.desc}</p>
                   </div>
                 </div>
               ))}

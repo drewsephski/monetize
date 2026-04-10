@@ -68,6 +68,8 @@ export async function sendLicenseEmail({
 
     const tierName = getTierDisplayName(tier);
     const features = getTierFeatures(tier);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://monetize-two.vercel.app';
+    const docsUrl = `${appUrl}/docs`;
 
     const { data, error } = await resend.emails.send({
       from: `Drew Billing <${FROM_EMAIL}>`,
@@ -93,55 +95,104 @@ export async function sendLicenseEmail({
     .features li { margin: 8px 0; color: #57534e; }
     .cta { text-align: center; margin: 30px 0; }
     .cta a { display: inline-block; background: #b8860b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; }
+    .cta-secondary { text-align: center; margin: 15px 0; }
+    .cta-secondary a { display: inline-block; background: transparent; color: #b8860b; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 500; border: 2px solid #b8860b; }
     .footer { text-align: center; padding: 20px 0; color: #78716c; font-size: 14px; border-top: 1px solid #e7e5e4; margin-top: 30px; }
-    .code-block { background: #1c1917; color: #e7e5e4; padding: 15px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 14px; overflow-x: auto; }
+    .code-block { background: #1c1917; color: #e7e5e4; padding: 15px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 14px; overflow-x: auto; margin: 10px 0; }
     .code-block code { color: #22c55e; }
+    .next-steps { background: #fafaf9; border-left: 4px solid #b8860b; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+    .next-steps h3 { margin-top: 0; color: #44403c; }
+    .next-steps ol { margin: 10px 0; padding-left: 20px; }
+    .next-steps li { margin: 12px 0; color: #57534e; }
+    .highlight-box { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0; }
+    .highlight-box h4 { margin-top: 0; color: #92400e; }
+    .highlight-box p { margin-bottom: 0; color: #78350f; font-size: 14px; }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="logo">⚡ Drew Billing</div>
   </div>
-  
+
   <div class="content">
     <h2>Thank you for your purchase${customerName ? `, ${customerName}` : ''}!</h2>
-    
+
     <p>Your Drew Billing SDK license is ready. Here's everything you need to get started:</p>
-    
+
     <div class="license-box">
       <p style="margin: 0 0 10px 0; color: #78716c; font-size: 14px;">Your License Key</p>
       <div class="license-key">${licenseKey}</div>
       <p style="margin: 10px 0 0 0; font-size: 12px; color: #a8a29e;">Copy and save this key securely</p>
     </div>
-    
+
     <div class="features">
       <h3>${tierName} Plan Features</h3>
       <ul>
         ${features.map(f => `<li>✓ ${f}</li>`).join('')}
       </ul>
     </div>
-    
+
     <h3>Quick Start</h3>
     <p>Install the SDK in your project:</p>
     <div class="code-block">
       <code>npm install @drewsepsi/billing-sdk</code>
     </div>
-    
-    <p style="margin-top: 20px;">Set your license key:</p>
+
+    <p style="margin-top: 20px;">Set your license key as an environment variable:</p>
     <div class="code-block">
       <code>export DREW_BILLING_LICENSE_KEY="${licenseKey}"</code>
     </div>
-    
-    <div class="cta">
-      <a href="/docs">View Documentation →</a>
+
+    <div class="next-steps">
+      <h3>🚀 Next Steps - What You Can Do</h3>
+      <ol>
+        <li><strong>Create checkout sessions</strong> - Add one-line Stripe checkout to your app</li>
+        <li><strong>Track usage</strong> - Meter API calls, AI credits, or any metric</li>
+        <li><strong>Validate subscriptions</strong> - Check if users have active plans</li>
+        <li><strong>Build customer portals</strong> - Let users manage their billing</li>
+      </ol>
     </div>
-    
-    <p style="font-size: 14px; color: #78716c;">
-      <strong>Need help?</strong> Reply to this email or visit our 
+
+    <p style="margin-top: 20px;">Initialize the SDK in your app:</p>
+    <div class="code-block">
+<code>import { BillingSDK } from "@drewsepsi/billing-sdk";
+
+const billing = new BillingSDK({
+  baseUrl: process.env.NEXT_PUBLIC_API_URL,
+  license: {
+    licenseKey: process.env.DREW_BILLING_LICENSE_KEY,
+  },
+});
+
+// Create a checkout session
+const url = await billing.createCheckout({
+  priceId: "price_pro",
+  userId: "user_123",
+});
+
+// Redirect user to Stripe
+window.location.href = url;</code>
+    </div>
+
+    <div class="highlight-box">
+      <h4>💡 Pro Tip</h4>
+      <p>Try the CLI to scaffold a complete billing integration in minutes: <code>npx @drewsepsi/billing-cli init</code></p>
+    </div>
+
+    <div class="cta">
+      <a href="${docsUrl}">View Full Documentation →</a>
+    </div>
+
+    <div class="cta-secondary">
+      <a href="${appUrl}/dashboard/licenses">Manage Your Licenses</a>
+    </div>
+
+    <p style="font-size: 14px; color: #78716c; margin-top: 30px;">
+      <strong>Need help?</strong> Reply to this email or visit our
       <a href="https://github.com/drewsephski/monetize/issues">support page</a>.
     </p>
   </div>
-  
+
   <div class="footer">
     <p>Drew Billing SDK License</p>
     <p style="font-size: 12px;">This license key is tied to your account. Do not share it publicly.</p>
@@ -162,7 +213,34 @@ Quick Start:
 1. Install: npm install @drewsepsi/billing-sdk
 2. Set your license key: export DREW_BILLING_LICENSE_KEY="${licenseKey}"
 
-Documentation: See your documentation at /docs
+Initialize the SDK:
+import { BillingSDK } from "@drewsepsi/billing-sdk";
+
+const billing = new BillingSDK({
+  baseUrl: process.env.NEXT_PUBLIC_API_URL,
+  license: {
+    licenseKey: process.env.DREW_BILLING_LICENSE_KEY,
+  },
+});
+
+// Create a checkout session
+const url = await billing.createCheckout({
+  priceId: "price_pro",
+  userId: "user_123",
+});
+window.location.href = url;
+
+What You Can Do:
+1. Create checkout sessions - Add one-line Stripe checkout to your app
+2. Track usage - Meter API calls, AI credits, or any metric
+3. Validate subscriptions - Check if users have active plans
+4. Build customer portals - Let users manage their billing
+
+Pro Tip: Try the CLI to scaffold a complete billing integration:
+npx @drewsepsi/billing-cli init
+
+Documentation: ${docsUrl}
+Manage Licenses: ${appUrl}/dashboard/licenses
 Support: https://github.com/drewsephski/monetize/issues
       `,
     });

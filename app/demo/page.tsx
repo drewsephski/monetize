@@ -5,6 +5,7 @@ import { BillingSDK } from "@/sdk/src"
 import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
+import { MobileNavigation } from "@/components/mobile-navigation"
 import {
   ArrowLeft,
   CreditCard,
@@ -26,7 +27,7 @@ const billing = new BillingSDK({
 })
 
 const isSandboxMode = process.env.NEXT_PUBLIC_BILLING_SANDBOX_MODE === "true"
-const defaultPriceId = isSandboxMode ? "price_test" : (process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "")
+const defaultPriceId = isSandboxMode ? "price_test" : (process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_1TKNcWRZE8Whwvf0lLV0ckmi")
 
 export default function DemoPage() {
   const { data: session } = authClient.useSession()
@@ -50,10 +51,12 @@ export default function DemoPage() {
       window.location.href = url
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error"
-      if (errorMsg.includes("No such price")) {
+      if (errorMsg.includes("No such price") || errorMsg.includes("Invalid price")) {
         setCheckoutError("Invalid Price ID. Get one from your Stripe Dashboard → Products, or enable sandbox mode.")
       } else if (errorMsg.includes("product is not active")) {
         setCheckoutError("This Stripe product is inactive. Activate it in your Stripe Dashboard → Products, or use sandbox mode.")
+      } else if (errorMsg.includes("Server error")) {
+        setCheckoutError("Server error. Run with BILLING_SANDBOX_MODE=true to test without Stripe.")
       } else {
         setCheckoutError(errorMsg)
       }
@@ -155,20 +158,23 @@ export default function DemoPage() {
     <main className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="glass fixed top-0 right-0 left-0 z-50">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="group flex items-center gap-3">
-            <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
-              <img 
-                src="/payment-credit.svg" 
-                alt="Logo" 
-                className="ml-1 h-7 w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="group flex items-center gap-2 sm:gap-3">
+            <div className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1c1917] via-[#2d2a28] to-[#1c1917] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:shadow-[#b8860b]/20">
+              <img
+                src="/payment-credit.svg"
+                alt="Logo"
+                className="ml-0.5 sm:ml-1 h-6 w-6 sm:h-7 sm:w-7 object-contain [filter:sepia(35%)_saturate(1.4)_hue-rotate(350deg)_brightness(0.95)]"
               />
             </div>
-            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
-              @drewsepsi/billing
+            <span className="font-[family-name:var(--font-display)] text-base sm:text-lg font-semibold tracking-tight text-[#1c1917] transition-colors group-hover:text-[#b8860b]">
+              <span className="hidden sm:inline">@drewsepsi/billing</span>
+              <span className="sm:hidden">Billing</span>
             </span>
           </Link>
-          <div className="flex items-center gap-2">
+
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center gap-2">
             {session ? (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 rounded-lg bg-[#fafaf9] px-3 py-1.5 text-sm text-[#44403c]">
@@ -208,70 +214,83 @@ export default function DemoPage() {
               Back
             </Link>
           </div>
+
+          {/* Mobile Navigation */}
+          <MobileNavigation
+            links={[
+              { href: "/", label: "Home" },
+              { href: "/try", label: "Live Demo" },
+              { href: "/pricing", label: "Pricing" },
+            ]}
+            cta={{
+              href: "/signin",
+              label: "Sign in",
+            }}
+          />
         </div>
       </nav>
 
-      <div className="mx-auto max-w-6xl px-6 pt-32 pb-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-28 sm:pt-32 pb-16 sm:pb-24">
         {/* Header */}
-        <div className="mb-12">
-          <div className="badge-pulse mb-5 inline-flex items-center gap-2 rounded-full border border-[#635bff]/10 bg-[#b8860b]/8 px-4 py-1.5">
+        <div className="mb-8 sm:mb-12">
+          <div className="badge-pulse mb-3 sm:mb-5 inline-flex items-center gap-2 rounded-full border border-[#635bff]/10 bg-[#b8860b]/8 px-3 sm:px-4 py-1.5">
             <Play className="h-3.5 w-3.5 text-[#b8860b]" />
-            <span className="text-sm font-medium text-[#b8860b]">
+            <span className="text-xs sm:text-sm font-medium text-[#b8860b]">
               Interactive Playground
             </span>
           </div>
-          <h1 className="mb-3 font-[family-name:var(--font-display)] text-4xl leading-tight tracking-tight text-[#1c1917] lg:text-5xl">
+          <h1 className="mb-2 sm:mb-3 font-[family-name:var(--font-display)] text-3xl sm:text-4xl leading-tight tracking-tight text-[#1c1917] lg:text-5xl">
             SDK Demo
           </h1>
-          <p className="text-lg text-[#78716c]">
+          <p className="text-base sm:text-lg text-[#78716c]">
             Test the billing SDK methods against your live backend
           </p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-12">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-12">
           {/* Left: Configuration */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-32 space-y-6">
+          <div className="lg:col-span-4 order-2 lg:order-1">
+            <div className="lg:sticky lg:top-32 space-y-4 sm:space-y-6">
               {/* Sandbox Mode Banner */}
               {isSandboxMode && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
-                      <Info className="h-4 w-4 text-amber-600" />
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 sm:p-4">
+                  <div className="flex items-start gap-2.5 sm:gap-3">
+                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                      <Info className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-amber-900">Sandbox Mode</h3>
-                      <p className="text-sm text-amber-700">
-                        Testing without real Stripe charges. Use any price ID like <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">price_test</code>
+                      <h3 className="font-medium text-amber-900 text-sm sm:text-base">Sandbox Mode</h3>
+                      <p className="text-xs sm:text-sm text-amber-700">
+                        Testing without real Stripe charges. Use any price ID like <code className="rounded bg-amber-100 px-1 py-0.5 text-[10px] sm:text-xs">price_test</code>
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="shadow-subtle rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-6">
-                <div className="mb-4 flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#e7e5e4] bg-white shadow-sm">
-                    <Terminal className="h-5 w-5 text-[#b8860b]" />
+              <div className="shadow-subtle rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-4 sm:p-6">
+                <div className="mb-3 sm:mb-4 flex items-start gap-2.5 sm:gap-3">
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg border border-[#e7e5e4] bg-white shadow-sm">
+                    <Terminal className="h-4 w-4 sm:h-5 sm:w-5 text-[#b8860b]" />
                   </div>
                   <div>
-                    <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[#1c1917]">
+                    <h2 className="font-[family-name:var(--font-display)] text-base sm:text-lg font-medium text-[#1c1917]">
                       Test Configuration
                     </h2>
-                    <p className="text-sm text-[#78716c]">
-                      These values are used for all SDK method calls below
+                    <p className="text-xs sm:text-sm text-[#78716c]">
+                      Used for all SDK method calls
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                   <div>
-                    <div className="mb-2 flex items-center gap-2">
-                      <label className="text-sm font-medium text-[#44403c]">
+                    <div className="mb-1.5 sm:mb-2 flex items-center gap-2">
+                      <label className="text-xs sm:text-sm font-medium text-[#44403c]">
                         User ID
                       </label>
                       <span
-                        className="help-tooltip"
+                        className="help-tooltip inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#e7e5e4] text-[10px] text-[#78716c] cursor-help"
                         data-tip="A unique identifier for your customer. We auto-generate one for testing, but in production this would be your actual user ID."
                       >
                         ?
@@ -281,21 +300,21 @@ export default function DemoPage() {
                       type="text"
                       value={userId}
                       onChange={(e) => setUserId(e.target.value)}
-                      className="w-full rounded-lg border border-[#e7e5e4] bg-white px-3 py-2.5 font-mono text-sm text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] focus:border-[#b8860b] focus:ring-2 focus:ring-[#b8860b]/15 focus:outline-none"
+                      className="w-full rounded-lg border border-[#e7e5e4] bg-white px-2.5 sm:px-3 py-2 font-mono text-xs sm:text-sm text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] focus:border-[#b8860b] focus:ring-2 focus:ring-[#b8860b]/15 focus:outline-none"
                     />
-                    <p className="mt-1.5 flex items-center gap-1 text-xs text-[#78716c]">
+                    <p className="mt-1.5 flex items-center gap-1 text-[10px] sm:text-xs text-[#78716c]">
                       <CheckCircle className="h-3 w-3 text-[#10b981]" />
                       Auto-generated for testing
                     </p>
                   </div>
 
                   <div>
-                    <div className="mb-2 flex items-center gap-2">
-                      <label className="text-sm font-medium text-[#44403c]">
+                    <div className="mb-1.5 sm:mb-2 flex items-center gap-2">
+                      <label className="text-xs sm:text-sm font-medium text-[#44403c]">
                         Price ID
                       </label>
                       <span
-                        className="help-tooltip"
+                        className="help-tooltip inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#e7e5e4] text-[10px] text-[#78716c] cursor-help"
                         data-tip={isSandboxMode ? "In sandbox mode, any value works (e.g., price_test)" : "Your Stripe Price ID (starts with price_). Get it from Stripe Dashboard → Products."}
                       >
                         ?
@@ -309,17 +328,17 @@ export default function DemoPage() {
                         setCheckoutError(null)
                       }}
                       placeholder={isSandboxMode ? "price_test" : "price_..."}
-                      className={`w-full rounded-lg border bg-white px-3 py-2.5 font-mono text-sm text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] focus:border-[#b8860b] focus:ring-2 focus:ring-[#b8860b]/15 focus:outline-none ${
+                      className={`w-full rounded-lg border bg-white px-2.5 sm:px-3 py-2 font-mono text-xs sm:text-sm text-[#1c1917] transition-all duration-200 hover:border-[#d6d3d1] focus:border-[#b8860b] focus:ring-2 focus:ring-[#b8860b]/15 focus:outline-none ${
                         checkoutError ? "border-red-300 focus:border-red-500 focus:ring-red-200" : "border-[#e7e5e4]"
                       }`}
                     />
                     {checkoutError ? (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                      <p className="mt-1.5 flex items-center gap-1 text-[10px] sm:text-xs text-red-600">
                         <AlertCircle className="h-3 w-3" />
                         {checkoutError}
                       </p>
                     ) : (
-                      <p className="mt-1.5 text-xs text-[#78716c]">
+                      <p className="mt-1.5 text-[10px] sm:text-xs text-[#78716c]">
                         {isSandboxMode ? "Any value works in sandbox mode" : "From your Stripe Dashboard → Products"}
                       </p>
                     )}
@@ -328,11 +347,11 @@ export default function DemoPage() {
               </div>
 
               {/* API Base URL */}
-              <div className="shadow-subtle card-interactive rounded-xl border border-[#e7e5e4] bg-white p-6">
-                <h3 className="mb-4 text-sm font-medium text-[#1c1917]">
+              <div className="shadow-subtle card-interactive rounded-xl border border-[#e7e5e4] bg-white p-4 sm:p-6">
+                <h3 className="mb-3 sm:mb-4 text-xs sm:text-sm font-medium text-[#1c1917]">
                   API Configuration
                 </h3>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                   <div className="flex items-center justify-between border-b border-[#f5f5f4] py-2">
                     <span className="text-[#78716c]">Base URL</span>
                     <code className="rounded bg-[#fafaf9] px-2 py-1 font-mono text-[#44403c]">
@@ -357,10 +376,10 @@ export default function DemoPage() {
 
               {/* How to enable sandbox */}
               {!isSandboxMode && (
-                <div className="rounded-lg border border-dashed border-[#d6d3d1] bg-white p-4">
-                  <p className="text-xs text-[#78716c]">
-                    <strong className="text-[#44403c]">Testing without Stripe?</strong><br />
-                    Run with <code className="rounded bg-[#fafaf9] px-1 py-0.5 text-[10px]">BILLING_SANDBOX_MODE=true npm run dev</code>
+                <div className="rounded-lg border border-dashed border-[#d6d3d1] bg-white p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-[#78716c]">
+                    <strong className="text-[#44403c]">Testing without Stripe?</strong>{" "}
+                    Run with <code className="rounded bg-[#fafaf9] px-1 py-0.5 text-[9px] sm:text-[10px]">BILLING_SANDBOX_MODE=true npm run dev</code>
                   </p>
                 </div>
               )}
@@ -368,10 +387,10 @@ export default function DemoPage() {
           </div>
 
           {/* Right: Actions & Results */}
-          <div className="lg:col-span-8">
-            <div className="space-y-6">
+          <div className="lg:col-span-8 order-1 lg:order-2">
+            <div className="space-y-4 sm:space-y-6">
               {/* Action Grid */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                 {actions.map((action) => {
                   const Icon = action.icon
                   const isLoading = loading === action.id
@@ -381,14 +400,14 @@ export default function DemoPage() {
                       key={action.id}
                       onClick={action.action}
                       disabled={loading !== null}
-                      className={`group relative flex items-start gap-4 rounded-xl border p-5 text-left transition-all duration-200 ${
+                      className={`group relative flex items-start gap-3 sm:gap-4 rounded-xl border p-3.5 sm:p-5 text-left transition-all duration-200 ${
                         action.primary
                           ? "shadow-elevated btn-interactive border-[#b8860b]/30 bg-[#b8860b] text-white hover:border-[#8b6914] hover:bg-[#8b6914]"
                           : "btn-secondary-modern hover:border-[#b8860b]/30"
                       } ${loading !== null && !isLoading ? "opacity-50" : ""}`}
                     >
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
+                        className={`flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-lg sm:rounded-xl transition-all duration-200 ${
                           action.primary
                             ? "bg-white/12"
                             : "border border-[#e7e5e4] bg-white shadow-sm group-hover:border-[#b8860b]/25 group-hover:bg-[#b8860b]/8"
@@ -396,23 +415,23 @@ export default function DemoPage() {
                       >
                         {isLoading ? (
                           <Loader2
-                            className={`h-5 w-5 animate-spin ${action.primary ? "text-white" : "text-[#b8860b]"}`}
+                            className={`h-4 w-4 sm:h-5 sm:w-5 animate-spin ${action.primary ? "text-white" : "text-[#b8860b]"}`}
                           />
                         ) : (
                           <Icon
-                            className={`h-5 w-5 transition-colors duration-200 ${action.primary ? "text-white" : "text-[#b8860b]"}`}
+                            className={`h-4 w-4 sm:h-5 sm:w-5 transition-colors duration-200 ${action.primary ? "text-white" : "text-[#b8860b]"}`}
                             strokeWidth={1.5}
                           />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div
-                          className={`mb-1 font-medium ${action.primary ? "text-white" : "text-[#1c1917] group-hover:text-[#b8860b]"} transition-colors duration-200`}
+                          className={`mb-0.5 sm:mb-1 text-sm sm:text-base font-medium ${action.primary ? "text-white" : "text-[#1c1917] group-hover:text-[#b8860b]"} transition-colors duration-200`}
                         >
                           {action.label}
                         </div>
                         <div
-                          className={`text-sm ${action.primary ? "text-white/80" : "text-[#78716c] group-hover:text-[#57534e]"} transition-colors duration-200`}
+                          className={`text-xs sm:text-sm ${action.primary ? "text-white/80" : "text-[#78716c] group-hover:text-[#57534e]"} transition-colors duration-200`}
                         >
                           {isLoading ? "Loading..." : action.description}
                         </div>
@@ -425,40 +444,39 @@ export default function DemoPage() {
               {/* Results Panel */}
               {result ? (
                 <div className="shadow-elevated response-block overflow-hidden rounded-xl bg-[#0f172a]">
-                  <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-5 py-3.5">
+                  <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-3 sm:px-5 py-2.5 sm:py-3.5">
                     <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#4ade80]" />
-                      <span className="text-sm font-medium text-[#f8fafc]">
+                      <div className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-pulse rounded-full bg-[#4ade80]" />
+                      <span className="text-xs sm:text-sm font-medium text-[#f8fafc]">
                         API Response
                       </span>
-                      <span className="ml-2 text-xs text-slate-400">
-                        JSON format
+                      <span className="ml-1.5 sm:ml-2 text-[10px] sm:text-xs text-slate-400">
+                        JSON
                       </span>
                     </div>
                     <button
                       onClick={() => setResult("")}
-                      className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-slate-400 transition-colors duration-200 hover:bg-white/10 hover:text-[#f8fafc]"
+                      className="flex items-center gap-1 rounded-lg px-2 sm:px-3 py-1 text-[10px] sm:text-xs text-slate-400 transition-colors duration-200 hover:bg-white/10 hover:text-[#f8fafc]"
                     >
-                      Clear response
+                      Clear
                     </button>
                   </div>
-                  <div className="max-h-96 overflow-auto p-5">
-                    <pre className="font-mono text-sm leading-relaxed text-[#f8fafc]">
+                  <div className="max-h-80 sm:max-h-96 overflow-y-auto overflow-x-auto p-3 sm:p-5">
+                    <pre className="font-mono text-xs sm:text-sm leading-relaxed text-[#f8fafc] whitespace-pre-wrap break-all">
                       {result}
                     </pre>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-[#d6d3d1] bg-[#fafaf9] p-12 text-center">
-                  <div className="shadow-subtle mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-[#e7e5e4] bg-white">
-                    <Play className="h-5 w-5 text-[#b8860b]" />
+                <div className="rounded-xl border border-dashed border-[#d6d3d1] bg-[#fafaf9] p-8 sm:p-12 text-center">
+                  <div className="shadow-subtle mx-auto mb-3 sm:mb-4 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl border border-[#e7e5e4] bg-white">
+                    <Play className="h-4 w-4 sm:h-5 sm:w-5 text-[#b8860b]" />
                   </div>
-                  <p className="mb-1 text-sm font-medium text-[#78716c]">
+                  <p className="mb-1 text-xs sm:text-sm font-medium text-[#78716c]">
                     Click any button above to see the result
                   </p>
-                  <p className="mx-auto max-w-xs text-xs text-[#78716c]">
-                    The API response will appear here in easy-to-read JSON
-                    format
+                  <p className="mx-auto max-w-xs text-[10px] sm:text-xs text-[#78716c]">
+                    The API response will appear here in easy-to-read JSON format
                   </p>
                 </div>
               )}

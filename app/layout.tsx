@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { DM_Sans, Instrument_Serif } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -19,6 +20,18 @@ const instrumentSerif = Instrument_Serif({
   style: ['normal', 'italic'],
 })
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fefdfb" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1714" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +43,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", dmSans.variable, instrumentSerif.variable)}
     >
-      <body className="font-sans">
+      <body className="font-sans touch-manipulation">
         <ThemeProvider>
           {children}
           <Toaster position="top-right" richColors />
